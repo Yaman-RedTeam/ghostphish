@@ -1276,23 +1276,18 @@ async def netflix_page():
             position: relative;
         }
 
-        /* ── HERO BG ── */
-        .bg-hero {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+        /* ── HERO BG ── moved onto body for mobile compat
+              (position:fixed + z-index stacking is unreliable on many
+               Android browsers and covered the form) */
+        html, body {
             background:
                 linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.7) 60%, #000 100%),
                 linear-gradient(45deg, #b81d24 0%, #831010 30%, #300000 60%, #000 100%);
             background-size: cover;
             background-position: center;
-            z-index: 0;
+            background-attachment: scroll;   /* NOT 'fixed' — buggy on mobile */
         }
-        .bg-hero::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-        }
+        .bg-hero { display: none; }
 
         /* ── HEADER ── */
         header {
@@ -3363,13 +3358,17 @@ async def microsoft_page():
             overflow-x: hidden;
         }
 
-        /* Cosmic geometric background */
+        /* Cosmic geometric background — on body for mobile compat */
+        html, body {
+            background: radial-gradient(ellipse at 30% 40%, #2a2f45 0%, #161a28 50%, #0d1020 100%);
+            background-attachment: scroll;
+        }
         .bg-cosmic {
-            position: fixed;
+            position: absolute;
             inset: 0;
             z-index: 0;
-            background: radial-gradient(ellipse at 30% 40%, #2a2f45 0%, #161a28 50%, #0d1020 100%);
             overflow: hidden;
+            pointer-events: none;
         }
         /* Big geometric curved shapes */
         .bg-cosmic::before {
@@ -3399,7 +3398,7 @@ async def microsoft_page():
 
         /* Add subtle stars */
         .stars {
-            position: fixed;
+            position: absolute;
             inset: 0;
             z-index: 1;
             pointer-events: none;
