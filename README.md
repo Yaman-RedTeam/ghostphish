@@ -126,7 +126,7 @@ All templates:
 ### 2. Clone and start
 
 ```bash
-git clone https://github.com/YOUR_USER/ghostphish.git
+git clone https://github.com/Yaman-RedTeam/ghostphish.git
 cd ghostphish
 docker-compose up -d --build
 ```
