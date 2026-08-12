@@ -178,6 +178,11 @@ Please **do not** submit templates for services that have specific anti-phishing
 
 MIT — see [`LICENSE`](LICENSE).
 
+## Maintainers
+
+- [@Yaman-RedTeam](https://github.com/Yaman-RedTeam)
+- [@Sikander700](https://github.com/Sikander700)
+
 ## Credits
 
 - FastAPI, uvicorn, cloudflared — the tools that make this small
