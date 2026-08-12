@@ -58,8 +58,9 @@ pkg update -y > /dev/null 2>&1
 msg_ok "packages updated"
 
 # ─── 4. Core dependencies ────────────────────────
-msg_info "Installing python + git + curl + openssl..."
-pkg install -y python git curl openssl python-pip > /dev/null 2>&1
+msg_info "Installing python + git + curl + openssl + build deps..."
+pkg install -y python git curl openssl python-pip \
+                clang binutils libjpeg-turbo libcrypt libffi > /dev/null 2>&1
 msg_ok "python $(python3 --version 2>&1 | cut -d' ' -f2) installed"
 
 # ─── 5. tur-repo (needed for cloudflared) ────────
@@ -89,10 +90,22 @@ else
 fi
 
 # ─── 6. Python deps ──────────────────────────────
-msg_info "Installing Python packages (fastapi, uvicorn, python-multipart)..."
-pip install --quiet --upgrade pip 2>&1 | tail -1
-pip install --quiet -r requirements.txt
-msg_ok "python deps installed"
+# NOTE: do NOT run `pip install --upgrade pip` on Termux — it breaks python-pip.
+# NOTE: python 3.14 has no prebuilt pydantic-v2 wheels for aarch64-android.
+#       We use requirements-termux.txt which pins pydantic v1 (pure Python).
+msg_info "Installing Python packages (fastapi + pydantic v1 for Termux)..."
+if [ -f requirements-termux.txt ]; then
+    REQ_FILE="requirements-termux.txt"
+else
+    REQ_FILE="requirements.txt"
+fi
+
+if pip install --quiet -r "$REQ_FILE" 2>&1 | tail -3; then
+    msg_ok "python deps installed from $REQ_FILE"
+else
+    msg_err "pip install failed — try: pkg install rust && pip install -r $REQ_FILE"
+    exit 1
+fi
 
 echo ""
 echo -e "  ${D}────────────────────────────────────────${N}"

@@ -1,0 +1,8 @@
+# Termux/Android — uses pydantic v1 (pure Python, no Rust build needed).
+# For Docker/Linux, use requirements.txt (pydantic v2 + latest fastapi).
+# NOTE: pydantic>=1.10.19 needed for Python 3.13+ compatibility
+#       (ForwardRef._evaluate() signature changed upstream).
+fastapi==0.99.1
+pydantic==1.10.22
+uvicorn==0.24.0
+python-multipart==0.0.6
