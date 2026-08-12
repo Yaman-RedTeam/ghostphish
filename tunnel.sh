@@ -25,7 +25,8 @@ banner() {
     echo -e "${R}"
     echo -e "   █▀▀ █░█ █▀█ █▀ ▀█▀ █▀█ █░█ █ █▀ █░█ █▀▀ █▀█"
     echo -e "   █▄█ █▀█ █▄█ ▄█ ░█░ █▀▀ █▀█ █ ▄█ █▀█ ██▄ █▀▄"
-    echo -e "${N}   ${Y}⚡ cloudflared tunnel launcher${N}\n"
+    echo -e "${N}   ${Y}⚡ cloudflared tunnel launcher${N}"
+    echo -e "   ${C}Developed by ${R}Yaman.RedTeam${N}  ${C}·${N}  ${C}github.com/Yaman-RedTeam/ghostphish${N}\n"
 }
 
 # ─── checks ────────────────────────────────────────────────

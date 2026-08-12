@@ -37,6 +37,7 @@ def main() -> int:
 
     print(f"\n{R}╔══════════════════════════════════════════════════════╗{N}")
     print(f"{R}║        ghostphish — CAPTURE STATISTICS               ║{N}")
+    print(f"{R}║        Developed by {W}Yaman.RedTeam{R}                    ║{N}")
     print(f"{R}╚══════════════════════════════════════════════════════╝{N}\n")
 
     total = len(rows)

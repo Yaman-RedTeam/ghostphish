@@ -248,3 +248,10 @@ MIT — see [`LICENSE`](LICENSE).
 
 - FastAPI, uvicorn, cloudflared — the tools that make this small
 - Original inspiration: htr-tech/zphisher (this project keeps the spirit but rewrites the stack)
+
+---
+
+<p align="center">
+  <strong>⚡ Developed by <a href="https://github.com/Yaman-RedTeam">Yaman.RedTeam</a> ⚡</strong><br>
+  <sub>Made with ❤️ for authorized red team engagements</sub>
+</p>

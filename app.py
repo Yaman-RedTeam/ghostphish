@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 import json
@@ -11,7 +12,33 @@ import hashlib
 from collections import defaultdict
 import time
 
-app = FastAPI()
+# ── Watermark ──────────────────────────────────────────────
+AUTHOR = "Yaman.RedTeam"
+GITHUB = "https://github.com/Yaman-RedTeam/ghostphish"
+VERSION = "1.0.0"
+
+BANNER = f"""
+\033[0;31m
+   █▀▀ █░█ █▀█ █▀ ▀█▀ █▀█ █░█ █ █▀ █░█ █▀▀ █▀█
+   █▄█ █▀█ █▄█ ▄█ ░█░ █▀▀ █▀█ █ ▄█ █▀█ ██▄ █▀▄
+\033[0m   \033[1;33m⚡ v{VERSION} — Developed By \033[1;31m{AUTHOR}\033[0m
+   \033[0;36m{GITHUB}\033[0m
+"""
+print(BANNER, file=sys.stderr, flush=True)
+
+app = FastAPI(
+    title="ghostphish",
+    version=VERSION,
+    description=f"Modern phishing framework for authorized red team engagements. Developed by {AUTHOR}.",
+    contact={"name": AUTHOR, "url": GITHUB},
+)
+
+
+@app.middleware("http")
+async def add_watermark_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Powered-By"] = f"ghostphish/{VERSION} - Developed by {AUTHOR}"
+    return response
 
 # Database setup
 DB_PATH = "/app/data/captures.db"
@@ -218,6 +245,10 @@ async def landing_page():
             </div>
             <div class="footer">
                 <p>For authorized security testing only</p>
+                <p style="margin-top:14px; font-weight:600; color:#fff; opacity:0.9;">
+                    ⚡ ghostphish v{VERSION} &mdash; Developed by
+                    <a href="{GITHUB}" style="color:#ff8090; text-decoration:none;">{AUTHOR}</a>
+                </p>
             </div>
         </div>
     </body>
@@ -3846,7 +3877,14 @@ async def get_captures():
     conn.close()
 
     captures = [dict(zip(columns, row)) for row in rows]
-    return {"total": len(captures), "captures": captures}
+    return {
+        "tool": "ghostphish",
+        "version": VERSION,
+        "developed_by": AUTHOR,
+        "github": GITHUB,
+        "total": len(captures),
+        "captures": captures,
+    }
 
 @app.post("/admin/clear")
 async def clear_captures():
