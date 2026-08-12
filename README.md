@@ -257,6 +257,22 @@ MIT — see [`LICENSE`](LICENSE).
 - [@Yaman-RedTeam](https://github.com/Yaman-RedTeam)
 - [@Sikander700](https://github.com/Sikander700)
 
+## Connect
+
+Follow the author for red team walkthroughs, tool releases, and CTF write-ups:
+
+<p align="left">
+  <a href="https://github.com/Yaman-RedTeam">
+    <img src="https://img.shields.io/badge/GitHub-Yaman--RedTeam-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub">
+  </a>
+  <a href="https://www.youtube.com/@YamanRedTeam">
+    <img src="https://img.shields.io/badge/YouTube-@YamanRedTeam-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube">
+  </a>
+  <a href="https://www.instagram.com/yaman.redteam">
+    <img src="https://img.shields.io/badge/Instagram-@yaman.redteam-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Instagram">
+  </a>
+</p>
+
 ## Credits
 
 - FastAPI, uvicorn, cloudflared — the tools that make this small
