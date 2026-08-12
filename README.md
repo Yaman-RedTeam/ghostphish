@@ -27,7 +27,7 @@ Most public phishing kits (zphisher, blackeye, etc.) ship with **outdated templa
 
 - **Modern replicas** — pixel-close copies of the *current* login pages (2025/2026 designs), including 2-step Google/Microsoft OAuth flows and dark themes where applicable.
 - **Real data storage** — SQLite with a proper schema, not flat text files. Query, export, or feed into other tooling.
-- **Production-ish backend** — FastAPI + Docker, rate limiting, honeypot detection, structured logging.
+- **Production-ish backend** — FastAPI + Docker, honeypot detection, structured logging.
 - **One-command tunnel** — `./tunnel.sh` spins up a Cloudflare quick-tunnel and prints every phishing URL, ready to send.
 
 ## Templates
@@ -113,8 +113,8 @@ All templates:
 
 - **`app.py`** — FastAPI app, one route per template + `/submit` + `/admin/captures`
 - **`data/captures.db`** — SQLite, table `captures(id, timestamp, service, email, password, otp, honeypot, ip_address, user_agent, referer, attempt_number)`
-- **Rate limiting** — 5 attempts / IP / 5 min (in-memory, resets on restart)
 - **Honeypot field** — hidden form input; non-empty submissions get logged and flagged
+- **Unlimited submissions** — no rate limit (target may retry as many times as needed)
 
 ## Quick start
 
@@ -223,7 +223,6 @@ See [`API.md`](API.md) for full request/response schemas.
 Edit `config.example.py` and rename to `config.py` (gitignored) for overrides. Defaults are safe for local testing.
 
 Key knobs:
-- Rate limit window & count
 - Post-submit redirect URLs per service
 - DB path
 

