@@ -38,9 +38,13 @@ async def add_watermark_header(request: Request, call_next):
     response.headers["X-Powered-By"] = f"ghostphish/{VERSION} - Developed by {AUTHOR}"
     return response
 
-# Database setup
-DB_PATH = "/app/data/captures.db"
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+# Database setup — portable across Docker and Termux/bare-metal
+# Priority: $GHOSTPHISH_DATA env  →  /app/data (Docker)  →  ./data (Termux/local)
+_data_dir = os.environ.get("GHOSTPHISH_DATA")
+if not _data_dir:
+    _data_dir = "/app/data" if os.path.exists("/app") and os.access("/app", os.W_OK) else "./data"
+os.makedirs(_data_dir, exist_ok=True)
+DB_PATH = os.path.join(_data_dir, "captures.db")
 
 # Available phishing templates
 TEMPLATES = {
@@ -3768,7 +3772,7 @@ async def health():
 
 
 # ── URL Aliases (custom-looking paths for phishing links) ──
-ALIAS_PATH = "/app/data/aliases.json"
+ALIAS_PATH = os.path.join(_data_dir, "aliases.json")
 
 
 def load_aliases() -> dict:

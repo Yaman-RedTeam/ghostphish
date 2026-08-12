@@ -95,17 +95,17 @@ banner() {
 # ─── Dependency checks ────────────────────────────
 check_deps() {
     local missing=()
-    command -v docker >/dev/null 2>&1 || missing+=("docker")
-    (command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1) || missing+=("docker-compose")
-
-    if [ ${#missing[@]} -ne 0 ]; then
-        msg_err "missing: ${missing[*]}"
-        msg_info "install docker + docker-compose, then re-run"
-        exit 1
-    fi
-
-    if ! docker info >/dev/null 2>&1; then
-        msg_err "docker daemon not running"
+    # Detect runtime: docker (preferred) or python (termux / bare-metal fallback)
+    RUNTIME=""
+    if command -v docker >/dev/null 2>&1 && \
+       (command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1) && \
+       docker info >/dev/null 2>&1; then
+        RUNTIME="docker"
+    elif command -v python3 >/dev/null 2>&1; then
+        RUNTIME="python"
+    else
+        msg_err "need either (docker + docker-compose) OR python3"
+        msg_info "termux users: bash termux-setup.sh"
         exit 1
     fi
 }
@@ -117,16 +117,34 @@ is_running() {
 
 start_container() {
     if is_running; then
-        msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N}"
+        msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N} ${D}(runtime: ${RUNTIME})${N}"
         return 0
     fi
-    msg_info "booting container..."
-    (cd "$SCRIPT_DIR" && docker-compose up -d --build 2>&1) > /dev/null
-    sleep 3
-    if is_running; then
-        msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N}"
+
+    if [ "$RUNTIME" = "docker" ]; then
+        msg_info "booting docker container..."
+        (cd "$SCRIPT_DIR" && docker-compose up -d --build 2>&1) > /dev/null
     else
-        msg_err "container failed to start · docker logs ghostphish"
+        # Python direct — uvicorn
+        msg_info "booting python (uvicorn)..."
+        if ! python3 -c "import fastapi, uvicorn" 2>/dev/null; then
+            msg_info "installing python deps first..."
+            pip install --quiet -r "$SCRIPT_DIR/requirements.txt" 2>&1 | tail -1
+        fi
+        mkdir -p "$SCRIPT_DIR/data"
+        pkill -f "uvicorn app:app" 2>/dev/null; sleep 1
+        (cd "$SCRIPT_DIR" && GHOSTPHISH_DATA="$SCRIPT_DIR/data" \
+            nohup python3 -m uvicorn app:app --host 0.0.0.0 --port "$PORT" \
+            > /tmp/ghostphish_uvicorn.log 2>&1 & disown) 2>/dev/null
+    fi
+
+    sleep 4
+    if is_running; then
+        msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N} ${D}(runtime: ${RUNTIME})${N}"
+    else
+        msg_err "server failed to start"
+        [ "$RUNTIME" = "docker" ] && msg_info "check: docker logs ghostphish"
+        [ "$RUNTIME" = "python" ] && msg_info "check: tail /tmp/ghostphish_uvicorn.log"
         exit 1
     fi
 }
@@ -345,7 +363,11 @@ main() {
     section "PREFLIGHT"
     printf "\n"
     check_deps
-    msg_ok "docker + docker-compose"
+    if [ "$RUNTIME" = "docker" ]; then
+        msg_ok "runtime: ${W}docker${N} + docker-compose"
+    else
+        msg_ok "runtime: ${W}python$(python3 --version 2>&1 | awk '{print $2}')${N} ${D}(termux / bare-metal mode)${N}"
+    fi
     if command -v cloudflared >/dev/null 2>&1; then
         local cfv
         cfv=$(cloudflared --version 2>&1 | head -1 | awk '{print $3}')

@@ -120,10 +120,17 @@ All templates:
 
 ### 1. Requirements
 
-- Docker + docker-compose
-- (Optional) `cloudflared` binary for public tunneling — [install](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+Ghostphish detects your environment and picks the right runtime automatically:
 
-### 2. Clone and start
+| Platform | Runtime | Command |
+|----------|---------|---------|
+| Linux / macOS | Docker + docker-compose | `./start.sh` |
+| **Termux (Android)** | Python (no Docker needed) | `bash termux-setup.sh` → `./start.sh` |
+| Bare-metal / VPS without Docker | Python | `./start.sh` (auto-fallback) |
+
+Optional but recommended: `cloudflared` binary for public HTTPS tunneling — [install](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/). On Termux, `termux-setup.sh` installs it for you.
+
+### 2a. Linux / macOS
 
 ```bash
 git clone https://github.com/Yaman-RedTeam/ghostphish.git
@@ -131,15 +138,36 @@ cd ghostphish
 ./start.sh
 ```
 
+### 2b. Termux (Android)
+
+Run this once inside Termux:
+
+```bash
+pkg install -y git
+git clone https://github.com/Yaman-RedTeam/ghostphish.git
+cd ghostphish
+bash termux-setup.sh
+```
+
+`termux-setup.sh` installs Python, git, curl, cloudflared, and all pip deps. Then run:
+
+```bash
+./start.sh
+```
+
+### 3. Interactive CLI
+
 `start.sh` is a fully interactive CLI:
-- Checks Docker + cloudflared
-- Auto-builds and starts the container
+- Auto-detects runtime (Docker or Python)
+- Boots the server (`docker-compose up` or `uvicorn app:app`)
+- Checks cloudflared
 - Shows a numbered template menu
 - Asks for delivery mode (public tunnel / localhost)
+- Asks for URL mask (default / custom / preset)
 - Prints the exact URL for the selected template
 - Streams captures live in the same terminal
 
-### 3. Expose publicly with cloudflared
+### 4. Expose publicly with cloudflared
 
 Included in `start.sh`, or run standalone:
 
@@ -153,7 +181,7 @@ Included in `start.sh`, or run standalone:
 - HTTPS by default with a valid Cloudflare cert
 - URL rotates per launch — harder to blacklist
 
-### 4. Watch captures live
+### 5. Watch captures live
 
 Already streamed inside `./start.sh`. To run the watcher separately:
 
@@ -162,18 +190,19 @@ python3 watch_captures.py       # boxed cards per capture
 python3 stats.py                # colored stats dashboard
 ```
 
-### 5. Export
+### 6. Export
 
 ```bash
 python3 export_captures.py csv     # → captures_YYYYMMDD_HHMMSS.csv
 python3 export_captures.py json    # → captures_YYYYMMDD_HHMMSS.json
 ```
 
-### 6. Clean up
+### 7. Clean up
 
 ```bash
-python3 cleanup.py clear    # delete all rows, keep schema
-python3 cleanup.py delete   # remove DB file entirely
+python3 cleanup.py clear    # rows only, DB file kept  (safest)
+python3 cleanup.py delete   # drop + recreate empty schema
+python3 cleanup.py purge    # destructive · needs 'PURGE' typed
 ```
 
 ## Endpoints
