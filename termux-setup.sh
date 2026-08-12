@@ -58,10 +58,11 @@ pkg update -y > /dev/null 2>&1
 msg_ok "packages updated"
 
 # ─── 4. Core dependencies ────────────────────────
-msg_info "Installing python + git + curl + openssl + build deps..."
+msg_info "Installing python + git + curl + openssl + build toolchain..."
 pkg install -y python git curl openssl python-pip \
-                clang binutils libjpeg-turbo libcrypt libffi > /dev/null 2>&1
+                clang binutils rust patchelf > /dev/null 2>&1
 msg_ok "python $(python3 --version 2>&1 | cut -d' ' -f2) installed"
+msg_ok "rust $(rustc --version 2>&1 | awk '{print $2}') installed (needed for pydantic-core)"
 
 # ─── 5. tur-repo (needed for cloudflared) ────────
 if ! command -v cloudflared >/dev/null 2>&1; then
@@ -91,19 +92,19 @@ fi
 
 # ─── 6. Python deps ──────────────────────────────
 # NOTE: do NOT run `pip install --upgrade pip` on Termux — it breaks python-pip.
-# NOTE: python 3.14 has no prebuilt pydantic-v2 wheels for aarch64-android.
-#       We use requirements-termux.txt which pins pydantic v1 (pure Python).
-msg_info "Installing Python packages (fastapi + pydantic v1 for Termux)..."
-if [ -f requirements-termux.txt ]; then
-    REQ_FILE="requirements-termux.txt"
-else
-    REQ_FILE="requirements.txt"
-fi
+# NOTE: Python 3.14 broke pydantic v1 (type-inference changes), so we install
+#       fastapi + pydantic v2. That requires Rust to compile pydantic-core
+#       (installed above in step 4). First install may take 15-30 minutes.
+msg_info "Wiping any incompatible pydantic v1 leftovers..."
+pip uninstall -y fastapi pydantic pydantic-core 2>/dev/null | tail -1 || true
 
-if pip install --quiet -r "$REQ_FILE" 2>&1 | tail -3; then
-    msg_ok "python deps installed from $REQ_FILE"
+msg_info "Installing fastapi + pydantic v2 (may take 15-30 min for pydantic-core Rust build)..."
+export CARGO_BUILD_JOBS=1  # keep RAM sane on phones
+if pip install -r requirements.txt; then
+    msg_ok "python deps installed"
 else
-    msg_err "pip install failed — try: pkg install rust && pip install -r $REQ_FILE"
+    msg_err "pip install failed. Full log above."
+    msg_info "Manual retry: cd $(pwd) && pip install -r requirements.txt"
     exit 1
 fi
 
