@@ -130,18 +130,40 @@ start_container() {
 
         # Prefer termux-specific requirements when on Termux OR when v2-pydantic
         # would fail to compile (no Rust). requirements-termux.txt pins pydantic v1.
+        IS_TERMUX=0
         REQ="$SCRIPT_DIR/requirements.txt"
         if [ -n "$PREFIX" ] && [ -d /data/data/com.termux ] && \
            [ -f "$SCRIPT_DIR/requirements-termux.txt" ]; then
             REQ="$SCRIPT_DIR/requirements-termux.txt"
+            IS_TERMUX=1
+        fi
+
+        # On Termux, if a previously-installed fastapi is v2-pydantic based
+        # (would need pydantic-core / Rust), we must purge it before installing
+        # our pinned v1 versions. pip's "already satisfied" would otherwise skip.
+        if [ "$IS_TERMUX" = "1" ]; then
+            HAS_V2=$(python3 -c "import pydantic; print(int(pydantic.VERSION.startswith('2')))" 2>/dev/null || echo 0)
+            if [ "$HAS_V2" = "1" ]; then
+                msg_info "purging incompatible fastapi/pydantic v2..."
+                pip uninstall -y fastapi pydantic pydantic-core > /dev/null 2>&1 || true
+            fi
         fi
 
         if ! python3 -c "import fastapi, uvicorn" 2>/dev/null; then
-            msg_info "installing python deps first ($(basename "$REQ"))..."
-            pip install -r "$REQ" 2>&1 | tail -5
+            msg_info "installing python deps ($(basename "$REQ"))..."
+            pip install -r "$REQ" 2>&1 | tail -8
             if ! python3 -c "import fastapi, uvicorn" 2>/dev/null; then
                 msg_err "pip install failed — see output above"
                 exit 1
+            fi
+        fi
+
+        # Verify the installed fastapi version matches what we expect
+        if [ "$IS_TERMUX" = "1" ]; then
+            FA_MAJOR=$(python3 -c "import fastapi; print(fastapi.__version__)" 2>/dev/null | cut -d. -f1-2)
+            if [ "$FA_MAJOR" != "0.99" ]; then
+                msg_warn "fastapi $FA_MAJOR installed, expected 0.99.x — reinstalling..."
+                pip install --force-reinstall --no-deps -r "$REQ" 2>&1 | tail -5
             fi
         fi
 
