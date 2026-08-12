@@ -273,11 +273,6 @@ Follow the author for red team walkthroughs, tool releases, and CTF write-ups:
   </a>
 </p>
 
-## Credits
-
-- FastAPI, uvicorn, cloudflared — the tools that make this small
-- Original inspiration: htr-tech/zphisher (this project keeps the spirit but rewrites the stack)
-
 ---
 
 <p align="center">
