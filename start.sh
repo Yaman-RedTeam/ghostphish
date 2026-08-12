@@ -85,7 +85,6 @@ banner() {
     printf "  ${RD}  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝${N}\n"
     printf "\n"
     printf "        ${GY}[${N} ${C}modern phishing framework${N} ${GY}·${N} ${Y}v${VERSION}${N} ${GY}]${N}   ${GY}Developed by${N} ${R}${BLD}Yaman.RedTeam${N}\n"
-    printf "        ${GY}GitHub  ${D}·${N}  ${CD}\e[4m%s\e[24m${N}\n" "$(link https://github.com/Yaman-RedTeam/ghostphish https://github.com/Yaman-RedTeam/ghostphish)"
     printf "        ${R}▶${N} ${W}YouTube${N} ${D}·${N}  ${C}\e[4m%s\e[24m${N}\n" "$(link https://www.youtube.com/@YamanRedTeam https://www.youtube.com/@YamanRedTeam)"
     printf "  "
     hr "─" "$D"
