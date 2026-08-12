@@ -23,7 +23,7 @@ Ships with 8 pixel-perfect login page replicas, one-command cloudflared tunnelin
 
 ## Why ghostphish?
 
-Most public phishing kits (zphisher, blackeye, etc.) ship with **outdated templates** that no longer match the real login pages of their targets — a giveaway to any target who is even moderately observant. Ghostphish takes a different approach:
+Most public phishing kits ship with **outdated templates** that no longer match the real login pages of their targets — a giveaway to any target who is even moderately observant. Ghostphish takes a different approach:
 
 - **Modern replicas** — pixel-close copies of the *current* login pages (2025/2026 designs), including 2-step Google/Microsoft OAuth flows and dark themes where applicable.
 - **Real data storage** — SQLite with a proper schema, not flat text files. Query, export, or feed into other tooling.
@@ -131,7 +131,7 @@ cd ghostphish
 ./start.sh
 ```
 
-`start.sh` is an interactive CLI (zphisher-style):
+`start.sh` is a fully interactive CLI:
 - Checks Docker + cloudflared
 - Auto-builds and starts the container
 - Shows a numbered template menu
