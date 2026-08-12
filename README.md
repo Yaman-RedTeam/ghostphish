@@ -128,10 +128,22 @@ All templates:
 ```bash
 git clone https://github.com/Yaman-RedTeam/ghostphish.git
 cd ghostphish
-docker-compose up -d --build
+./start.sh
 ```
 
-Server is now live at `http://localhost:8000`.
+`start.sh` is an interactive CLI (zphisher-style):
+- Checks Docker + cloudflared
+- Auto-builds and starts the container
+- Shows a numbered template menu
+- Asks for delivery mode (public tunnel / localhost)
+- Prints the exact URL for the selected template
+- Streams captures live in the same terminal
+
+**Prefer the raw approach?**
+
+```bash
+docker-compose up -d --build   # server at http://localhost:8000
+```
 
 Visit any template:
 - `http://localhost:8000/instagram`
@@ -139,6 +151,8 @@ Visit any template:
 - … etc.
 
 ### 3. Expose publicly with cloudflared
+
+Included in `start.sh`, or run standalone:
 
 ```bash
 ./tunnel.sh
