@@ -895,7 +895,7 @@ async def instagram_page():
         const btn      = document.getElementById("submitBtn");
         if (!email || !password) return;
         btn.disabled = true;
-        btn.innerHTML = "<span class=\"spinner\"></span>";
+        btn.innerHTML = '<span class="spinner"></span>';
         try {
             const res = await fetch("/submit", {
                 method: "POST",
