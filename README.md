@@ -1,3 +1,17 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="ghostphish — modern phishing framework for authorized red team engagements" width="100%">
+</p>
+
+<p align="center">
+  <a href="#quick-start"><img src="https://img.shields.io/badge/status-active-brightgreen?style=flat-square" alt="Status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/FastAPI-0.104-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/templates-8-ff2a3d?style=flat-square" alt="8 templates">
+  <img src="https://img.shields.io/badge/tunnel-cloudflared-f38020?style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflared">
+</p>
+
 # ghostphish
 
 A modern, Docker-based phishing framework for **authorized red team engagements** and **security research**.

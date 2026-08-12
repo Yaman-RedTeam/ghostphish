@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="banner-title">
+    <title id="banner-title">ghostphish — modern phishing framework for authorized red team engagements</title>
+
+    <defs>
+        <!-- Deep gradient background -->
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stop-color="#0a0a0f"/>
+            <stop offset="60%"  stop-color="#1a0a12"/>
+            <stop offset="100%" stop-color="#2a0510"/>
+        </linearGradient>
+
+        <!-- Red glow gradient -->
+        <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stop-color="#ff3040" stop-opacity="0.35"/>
+            <stop offset="60%"  stop-color="#c81020" stop-opacity="0.1"/>
+            <stop offset="100%" stop-color="#c81020" stop-opacity="0"/>
+        </radialGradient>
+
+        <!-- Text neon glow -->
+        <filter id="neon" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+
+        <!-- Ghost gradient -->
+        <linearGradient id="ghost-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff4d5c"/>
+            <stop offset="100%" stop-color="#a00818"/>
+        </linearGradient>
+
+        <!-- Terminal green -->
+        <linearGradient id="hook-g" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#4ade80"/>
+            <stop offset="100%" stop-color="#10b981"/>
+        </linearGradient>
+
+        <!-- Scanline pattern -->
+        <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+            <rect width="4" height="4" fill="transparent"/>
+            <line x1="0" y1="2" x2="4" y2="2" stroke="#ff4055" stroke-width="0.4" opacity="0.08"/>
+        </pattern>
+    </defs>
+
+    <!-- Background -->
+    <rect width="1200" height="340" fill="url(#bg)"/>
+    <rect width="1200" height="340" fill="url(#scan)"/>
+
+    <!-- Red glow left of ghost -->
+    <circle cx="180" cy="170" r="200" fill="url(#glow)"/>
+
+    <!-- Subtle grid dots (matrix vibe) -->
+    <g fill="#ff4055" opacity="0.15">
+        <circle cx="60"   cy="40"  r="1"/>
+        <circle cx="140"  cy="80"  r="1"/>
+        <circle cx="240"  cy="30"  r="1"/>
+        <circle cx="340"  cy="90"  r="1"/>
+        <circle cx="440"  cy="50"  r="1"/>
+        <circle cx="540"  cy="30"  r="1"/>
+        <circle cx="640"  cy="80"  r="1"/>
+        <circle cx="740"  cy="40"  r="1"/>
+        <circle cx="840"  cy="70"  r="1"/>
+        <circle cx="940"  cy="30"  r="1"/>
+        <circle cx="1040" cy="80"  r="1"/>
+        <circle cx="1140" cy="40"  r="1"/>
+
+        <circle cx="80"   cy="290" r="1"/>
+        <circle cx="180"  cy="310" r="1"/>
+        <circle cx="280"  cy="270" r="1"/>
+        <circle cx="380"  cy="320" r="1"/>
+        <circle cx="480"  cy="290" r="1"/>
+        <circle cx="580"  cy="310" r="1"/>
+        <circle cx="680"  cy="280" r="1"/>
+        <circle cx="780"  cy="320" r="1"/>
+        <circle cx="880"  cy="290" r="1"/>
+        <circle cx="980"  cy="310" r="1"/>
+        <circle cx="1080" cy="280" r="1"/>
+    </g>
+
+    <!-- Ghost figure with fishing hook (left side) -->
+    <g transform="translate(100, 80)">
+        <!-- Ghost body -->
+        <path fill="url(#ghost-g)" opacity="0.95"
+              d="M90 0 C40 0 15 40 15 90 L15 175
+                 C15 178 18 180 20 178 L32 168 C34 166 37 166 39 168 L52 178
+                 C54 180 57 180 59 178 L72 168 C74 166 77 166 79 168 L92 178
+                 C94 180 97 180 99 178 L112 168 C114 166 117 166 119 168 L132 178
+                 C134 180 137 180 139 178 L152 168 C154 166 157 166 159 168 L165 173
+                 C167 176 170 175 170 172 L170 90 C170 40 145 0 90 0 Z"/>
+
+        <!-- Ghost eyes (glowing) -->
+        <ellipse cx="60"  cy="80" rx="12" ry="16" fill="#0a0a0f"/>
+        <ellipse cx="120" cy="80" rx="12" ry="16" fill="#0a0a0f"/>
+        <circle cx="63"  cy="76" r="3" fill="#ff8090" opacity="0.9"/>
+        <circle cx="123" cy="76" r="3" fill="#ff8090" opacity="0.9"/>
+
+        <!-- Sad/mischievous mouth -->
+        <path d="M75 118 Q90 128 105 118" stroke="#0a0a0f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+        <!-- Fishing hook coming from ghost -->
+        <g transform="translate(160, 100)" stroke="url(#hook-g)" stroke-width="3.5" fill="none" stroke-linecap="round">
+            <!-- Line -->
+            <path d="M0 0 L60 25"/>
+            <!-- Hook curl -->
+            <path d="M60 25 Q80 30 82 45 Q82 60 68 63 Q60 63 58 55"/>
+            <!-- Barb -->
+            <line x1="58" y1="55" x2="53" y2="47"/>
+        </g>
+    </g>
+
+    <!-- Main title -->
+    <g filter="url(#neon)">
+        <text x="420" y="150"
+              font-family="'Courier New', 'Consolas', monospace"
+              font-size="82"
+              font-weight="900"
+              fill="#ff2a3d"
+              letter-spacing="-2">ghost<tspan fill="#e3e3e3">phish</tspan></text>
+    </g>
+
+    <!-- Terminal-style prompt tagline -->
+    <text x="420" y="195"
+          font-family="'Courier New', 'Consolas', monospace"
+          font-size="20"
+          fill="#4ade80"
+          letter-spacing="0.5">$ ./deploy --targets=8 --tunnel=cloudflared</text>
+
+    <!-- Subtitle -->
+    <text x="420" y="235"
+          font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+          font-size="17"
+          font-weight="500"
+          fill="#b0b3b8">Modern phishing framework · 8 pixel-perfect templates · SQLite capture · Docker</text>
+
+    <!-- Feature pills -->
+    <g font-family="'SF Mono', 'Courier New', monospace" font-size="12" font-weight="600">
+        <!-- pill 1 -->
+        <g transform="translate(420, 265)">
+            <rect width="82" height="24" rx="12" fill="#ff2a3d" fill-opacity="0.12" stroke="#ff2a3d" stroke-opacity="0.5" stroke-width="1"/>
+            <text x="41" y="16" fill="#ff8090" text-anchor="middle">RED TEAM</text>
+        </g>
+        <!-- pill 2 -->
+        <g transform="translate(512, 265)">
+            <rect width="88" height="24" rx="12" fill="#4ade80" fill-opacity="0.12" stroke="#4ade80" stroke-opacity="0.5" stroke-width="1"/>
+            <text x="44" y="16" fill="#4ade80" text-anchor="middle">FastAPI</text>
+        </g>
+        <!-- pill 3 -->
+        <g transform="translate(610, 265)">
+            <rect width="84" height="24" rx="12" fill="#38bdf8" fill-opacity="0.12" stroke="#38bdf8" stroke-opacity="0.5" stroke-width="1"/>
+            <text x="42" y="16" fill="#7dd3fc" text-anchor="middle">Docker</text>
+        </g>
+        <!-- pill 4 -->
+        <g transform="translate(704, 265)">
+            <rect width="120" height="24" rx="12" fill="#facc15" fill-opacity="0.12" stroke="#facc15" stroke-opacity="0.5" stroke-width="1"/>
+            <text x="60" y="16" fill="#facc15" text-anchor="middle">Cloudflared</text>
+        </g>
+    </g>
+
+    <!-- Version badge top-right -->
+    <g transform="translate(1080, 30)">
+        <rect width="88" height="26" rx="4" fill="#ff2a3d" fill-opacity="0.15" stroke="#ff2a3d" stroke-width="1"/>
+        <text x="44" y="18" font-family="'SF Mono', 'Courier New', monospace" font-size="12" font-weight="700" fill="#ff8090" text-anchor="middle">v1.0.0</text>
+    </g>
+
+    <!-- Corner decoration — terminal cursor blink dot -->
+    <circle cx="1170" cy="310" r="4" fill="#4ade80" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Top border accent lines -->
+    <rect x="0" y="0" width="1200" height="2" fill="#ff2a3d" opacity="0.6"/>
+    <rect x="0" y="338" width="1200" height="2" fill="#4ade80" opacity="0.4"/>
+</svg>
