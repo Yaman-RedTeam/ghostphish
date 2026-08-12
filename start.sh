@@ -70,11 +70,18 @@ msg_warn() { printf "  ${Y}[~]${N} %s\n" "$*"; }
 banner() {
     clear
     printf "\n"
-    printf "  ${R}▄▄${N}  ${W}${BLD}ghostphish${N}  ${D}v${VERSION}${N}\n"
-    printf "  ${R}▀▀${N}  ${GY}modern phishing framework for authorized red-team ops${N}\n"
-    printf "  ${GY}     Developed by ${R}Yaman.RedTeam${GY} · github.com/Yaman-RedTeam/ghostphish${N}\n"
+    printf "  ${R}  ▄████╗ ██╗  ██╗ ██████╗ ███████╗████████╗██████╗ ██╗  ██╗██╗███████╗██╗  ██╗${N}\n"
+    printf "  ${R} ██╔════╝ ██║  ██║██╔═══██╗██╔════╝╚══██╔══╝██╔══██╗██║  ██║██║██╔════╝██║  ██║${N}\n"
+    printf "  ${R} ██║  ███╗███████║██║   ██║███████╗   ██║   ██████╔╝███████║██║███████╗███████║${N}\n"
+    printf "  ${RD} ██║   ██║██╔══██║██║   ██║╚════██║   ██║   ██╔═══╝ ██╔══██║██║╚════██║██╔══██║${N}\n"
+    printf "  ${RD} ╚██████╔╝██║  ██║╚██████╔╝███████║   ██║   ██║     ██║  ██║██║███████║██║  ██║${N}\n"
+    printf "  ${RD}  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝${N}\n"
+    printf "\n"
+    printf "        ${GY}[${N} ${C}modern phishing framework${N} ${GY}·${N} ${Y}v${VERSION}${N} ${GY}]${N}   ${GY}Developed by${N} ${R}${BLD}Yaman.RedTeam${N}\n"
+    printf "        ${D}github.com/Yaman-RedTeam/ghostphish${N}\n"
     printf "  "
     hr "─" "$D"
+    printf "  ${G}\033[5m●${N} ${GY}booted${N}   ${G}\033[5m●${N} ${GY}armed${N}   ${G}\033[5m●${N} ${GY}silent${N}   ${G}\033[5m●${N} ${GY}listening${N}\n"
     printf "\n"
 }
 
