@@ -139,17 +139,6 @@ cd ghostphish
 - Prints the exact URL for the selected template
 - Streams captures live in the same terminal
 
-**Prefer the raw approach?**
-
-```bash
-docker-compose up -d --build   # server at http://localhost:8000
-```
-
-Visit any template:
-- `http://localhost:8000/instagram`
-- `http://localhost:8000/facebook`
-- … etc.
-
 ### 3. Expose publicly with cloudflared
 
 Included in `start.sh`, or run standalone:
