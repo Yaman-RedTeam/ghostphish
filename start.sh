@@ -21,6 +21,13 @@ D=$'\033[2m'           # dim
 BLD=$'\033[1m'         # bold
 N=$'\033[0m'           # reset
 
+# OSC 8 hyperlink — clickable in modern terminals (iTerm2, WezTerm, Kitty,
+# GNOME Terminal, Alacritty ≥0.11, Windows Terminal). Older terminals show plain text.
+link() {
+    local url="$1" text="${2:-$1}"
+    printf '\033]8;;%s\033\\%s\033]8;;\033\\' "$url" "$text"
+}
+
 PORT=8000
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
@@ -78,8 +85,8 @@ banner() {
     printf "  ${RD}  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝${N}\n"
     printf "\n"
     printf "        ${GY}[${N} ${C}modern phishing framework${N} ${GY}·${N} ${Y}v${VERSION}${N} ${GY}]${N}   ${GY}Developed by${N} ${R}${BLD}Yaman.RedTeam${N}\n"
-    printf "        ${D}github.com/Yaman-RedTeam/ghostphish${N}\n"
-    printf "        ${R}▶${N} ${W}YouTube${N} ${D}·${N} ${C}youtube.com/@YamanRedTeam${N}\n"
+    printf "        ${D}%s${N}\n" "$(link https://github.com/Yaman-RedTeam/ghostphish github.com/Yaman-RedTeam/ghostphish)"
+    printf "        ${R}▶${N} ${W}YouTube${N} ${D}·${N} ${C}%s${N}\n" "$(link https://www.youtube.com/@YamanRedTeam youtube.com/@YamanRedTeam)"
     printf "  "
     hr "─" "$D"
     printf "  ${G}\033[5m●${N} ${GY}booted${N}   ${G}\033[5m●${N} ${GY}armed${N}   ${G}\033[5m●${N} ${GY}silent${N}   ${G}\033[5m●${N} ${GY}listening${N}\n"
@@ -317,11 +324,11 @@ show_link() {
     printf "\n"
 
     printf "    ${GY}link ${D}(send to target)${N}\n"
-    printf "    ${G}${BLD}${full_url}${N}\n\n"
+    printf "    ${G}${BLD}%s${N}\n\n" "$(link "$full_url" "$full_url")"
 
     section "OPERATIONS"
     printf "\n"
-    kv "admin"    "${TUNNEL_URL}/admin/captures"       "$GY" "$D"
+    kv "admin"    "$(link "${TUNNEL_URL}/admin/captures" "${TUNNEL_URL}/admin/captures")" "$GY" "$D"
     kv "stats"    "python3 stats.py"                   "$GY" "$D"
     kv "export"   "python3 export_captures.py csv"     "$GY" "$D"
     [[ "$DELIVERY" == "tunnel" ]] && kv "tun.log" "tail -f ${LOG_FILE}" "$GY" "$D"
