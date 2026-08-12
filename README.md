@@ -147,20 +147,6 @@ Included in `start.sh`, or run standalone:
 ./tunnel.sh
 ```
 
-Output:
-
-```
-════════════════════════════════════════════════════════
-   ✓ TUNNEL ACTIVE
-════════════════════════════════════════════════════════
-   Public URL: https://xxx-yyy-zzz.trycloudflare.com
-
-   ── Phishing pages ──────────────────────────────
-   Instagram     https://xxx-yyy-zzz.trycloudflare.com/instagram
-   Facebook      https://xxx-yyy-zzz.trycloudflare.com/facebook
-   ...
-```
-
 **Why cloudflared over ngrok:**
 - No account or auth token needed (quick-tunnel is anonymous)
 - No warning interstitial page (ngrok's free tier shows one)
@@ -169,14 +155,11 @@ Output:
 
 ### 4. Watch captures live
 
-```bash
-watch -n 2 'curl -s http://localhost:8000/admin/captures | python3 -m json.tool | head -60'
-```
-
-Or view stats:
+Already streamed inside `./start.sh`. To run the watcher separately:
 
 ```bash
-python3 stats.py
+python3 watch_captures.py       # boxed cards per capture
+python3 stats.py                # colored stats dashboard
 ```
 
 ### 5. Export
@@ -184,7 +167,6 @@ python3 stats.py
 ```bash
 python3 export_captures.py csv     # → captures_YYYYMMDD_HHMMSS.csv
 python3 export_captures.py json    # → captures_YYYYMMDD_HHMMSS.json
-python3 export_captures.py stats   # minimal stats
 ```
 
 ### 6. Clean up
@@ -196,24 +178,18 @@ python3 cleanup.py delete   # remove DB file entirely
 
 ## Endpoints
 
-| Method | Path                | Purpose                                    |
-|--------|---------------------|--------------------------------------------|
-| GET    | `/`                 | Landing page (list of templates)           |
-| GET    | `/{service}`        | Serve phishing template for `service`      |
-| POST   | `/submit`           | Accept `{service, email, password, otp, honeypot}` JSON |
-| GET    | `/admin/captures`   | Return all captures as JSON                |
-| POST   | `/admin/clear`      | Wipe DB rows                               |
-| GET    | `/health`           | Health probe                               |
-
-See [`API.md`](API.md) for full request/response schemas.
-
-## Configuration
-
-Edit `config.example.py` and rename to `config.py` (gitignored) for overrides. Defaults are safe for local testing.
-
-Key knobs:
-- Post-submit redirect URLs per service
-- DB path
+| Method | Path                     | Purpose                                    |
+|--------|--------------------------|--------------------------------------------|
+| GET    | `/`                      | Tool info (JSON) — CLI is the entry point  |
+| GET    | `/{service}`             | Serve phishing template for `service`      |
+| GET    | `/{alias}`               | Serve template mapped via `/admin/aliases` |
+| POST   | `/submit`                | Accept `{service, email, password, otp, honeypot}` JSON |
+| GET    | `/admin/captures`        | Return all captures as JSON                |
+| POST   | `/admin/clear`           | Wipe DB rows                               |
+| GET    | `/admin/aliases`         | List custom URL aliases                    |
+| POST   | `/admin/aliases`         | Register alias `{path, template}`          |
+| DELETE | `/admin/aliases/{path}`  | Remove alias                               |
+| GET    | `/health`                | Health probe                               |
 
 ## Legal & ethical use
 
