@@ -434,7 +434,7 @@ Each template provides unique insights into user behavior:
 ## Tips & Tricks
 
 ✅ **Best Practices**
-- Use landing page for random template distribution
+- Use `./start.sh` to pick a template + generate a masked link per target
 - Customize per-target with different templates
 - Mix templates in same campaign for diversity
 - Track success by template type
