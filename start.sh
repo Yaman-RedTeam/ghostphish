@@ -127,10 +127,24 @@ start_container() {
     else
         # Python direct — uvicorn
         msg_info "booting python (uvicorn)..."
-        if ! python3 -c "import fastapi, uvicorn" 2>/dev/null; then
-            msg_info "installing python deps first..."
-            pip install --quiet -r "$SCRIPT_DIR/requirements.txt" 2>&1 | tail -1
+
+        # Prefer termux-specific requirements when on Termux OR when v2-pydantic
+        # would fail to compile (no Rust). requirements-termux.txt pins pydantic v1.
+        REQ="$SCRIPT_DIR/requirements.txt"
+        if [ -n "$PREFIX" ] && [ -d /data/data/com.termux ] && \
+           [ -f "$SCRIPT_DIR/requirements-termux.txt" ]; then
+            REQ="$SCRIPT_DIR/requirements-termux.txt"
         fi
+
+        if ! python3 -c "import fastapi, uvicorn" 2>/dev/null; then
+            msg_info "installing python deps first ($(basename "$REQ"))..."
+            pip install -r "$REQ" 2>&1 | tail -5
+            if ! python3 -c "import fastapi, uvicorn" 2>/dev/null; then
+                msg_err "pip install failed — see output above"
+                exit 1
+            fi
+        fi
+
         mkdir -p "$SCRIPT_DIR/data"
         pkill -f "uvicorn app:app" 2>/dev/null; sleep 1
         (cd "$SCRIPT_DIR" && GHOSTPHISH_DATA="$SCRIPT_DIR/data" \
