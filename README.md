@@ -49,6 +49,53 @@ All templates:
 - Show a realistic error state on repeat submissions
 - Include the correct favicon, page title, and footer
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/instagram.png" alt="Instagram — dark theme"><br>
+      <sub><b>Instagram</b> — dark theme with "close friends" hero and embedded photo collage</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/facebook.png" alt="Facebook — Explore the things you love"><br>
+      <sub><b>Facebook</b> — white bg, floating photo cards, real FB &amp; Meta logos</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshots/netflix.png" alt="Netflix — Sign In"><br>
+      <sub><b>Netflix</b> — dark hero, red wordmark, floating labels, reCAPTCHA disclaimer</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/twitter.png" alt="X (Twitter) — Sign in"><br>
+      <sub><b>Twitter / X</b> — pure black bg, huge X logo, Google &amp; Apple SSO</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshots/linkedin.png" alt="LinkedIn — Sign in"><br>
+      <sub><b>LinkedIn</b> — beige bg, real logo, Google/Apple SSO, "show" password toggle</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/snapchat.png" alt="Snapchat — Log in"><br>
+      <sub><b>Snapchat</b> — yellow header, ghost logo, minimalist form, pill button</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshots/microsoft.png" alt="Microsoft — Sign in"><br>
+      <sub><b>Microsoft</b> — cosmic dark bg, 2-step email→password flow, 4-square logo</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/gmail.png" alt="Gmail — Sign in"><br>
+      <sub><b>Gmail</b> — real dark theme, colored G logo, email chip on step 2</sub>
+    </td>
+  </tr>
+</table>
+
+> All screenshots taken with a 1280×800 headless Chromium against localhost. Fonts and layout match the current (2025/2026) design of each target.
+
 ## Architecture
 
 ```
