@@ -75,17 +75,33 @@ def render_capture(c: dict) -> None:
 def main() -> int:
     seen = set()
     first_tick = True
+    backoff = 2  # exponential backoff: 2s → 4s → 8s (cap 16s)
 
-    print(f"  {D}watching /admin/captures every 2s...{N}\n", flush=True)
+    print(f"  {D}watching /admin/captures every {backoff}s...{N}\n", flush=True)
 
     try:
         while True:
             try:
-                with urllib.request.urlopen(URL, timeout=3) as resp:
+                with urllib.request.urlopen(URL, timeout=5) as resp:
                     data = json.loads(resp.read())
+                backoff = 2  # reset on success
+            except urllib.error.HTTPError as e:
+                # HTTP errors (500, 404, etc.)
+                print(f"  {R}[!] HTTP {e.code}: {e.reason}{N}", flush=True)
+                time.sleep(min(backoff, 16))
+                backoff = min(backoff * 2, 16)
+                continue
+            except urllib.error.URLError as e:
+                # Network errors (connection refused, timeout, etc.)
+                print(f"  {R}[!] connection error: {e.reason}{N}", flush=True)
+                time.sleep(min(backoff, 16))
+                backoff = min(backoff * 2, 16)
+                continue
             except Exception as e:
-                print(f"  {R}[!] fetch error: {e}{N}", flush=True)
-                time.sleep(3)
+                # JSON parse errors, etc.
+                print(f"  {R}[!] unexpected error: {type(e).__name__}: {e}{N}", flush=True)
+                time.sleep(min(backoff, 16))
+                backoff = min(backoff * 2, 16)
                 continue
 
             captures = data.get("captures", [])
@@ -98,7 +114,7 @@ def main() -> int:
                     continue  # don't spam old rows on startup
                 render_capture(c)
             first_tick = False
-            time.sleep(2)
+            time.sleep(backoff)
     except KeyboardInterrupt:
         print(f"\n  {D}stopped watching · container still running.{N}\n")
     return 0

