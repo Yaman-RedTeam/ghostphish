@@ -71,10 +71,9 @@ htmlcov/
 *.backup
 *_backup_*
 
-# Tunnel runtime state
-ghostphish_tunnel.log
-ghostphish_tunnel.pid
-ghostphish_tunnel.url
+# Tunnel runtime state (log/pid/url/cfpid/history/manual log)
+ghostphish_tunnel.*
+ghostphish_tunnel_manual.log
 
 # Local config overrides
 config.py

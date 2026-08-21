@@ -9,8 +9,22 @@
 
 set -e
 
+# Anchor state to the repo dir — writing to /tmp fails under the
+# sandbox ("Permission denied") and collides across users.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=8000
-LOG_FILE="/tmp/ghostphish_tunnel.log"
+LOG_FILE="${SCRIPT_DIR}/ghostphish_tunnel_manual.log"
+
+# Don't stack a second (competing, different-URL) tunnel on top of the
+# persistent supervisor if it's already running.
+_sup_pid_file="${SCRIPT_DIR}/ghostphish_tunnel.pid"
+if [[ -f "$_sup_pid_file" ]] && kill -0 "$(cat "$_sup_pid_file" 2>/dev/null)" 2>/dev/null; then
+    echo -e "\033[1;33m[!] Persistent tunnel supervisor is already running.\033[0m"
+    echo -e "    Use it instead of this manual launcher:"
+    echo -e "      \033[0;36m./tunnel-persistent.sh status\033[0m   (show current URL)"
+    echo -e "    Or stop it first: \033[0;36m./tunnel-persistent.sh stop\033[0m"
+    exit 1
+fi
 
 # ─── colors ────────────────────────────────────────────────
 R='\033[0;31m'
