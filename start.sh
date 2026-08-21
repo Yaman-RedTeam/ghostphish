@@ -127,6 +127,10 @@ start_container() {
 
     if [ "$RUNTIME" = "docker" ]; then
         msg_info "booting docker container..."
+        # Ensure the bind-mount source exists BEFORE compose up. If ./data is
+        # missing (or was deleted), the container's /app/data mount goes stale
+        # and every DB access 500s with "unable to open database file".
+        mkdir -p "$SCRIPT_DIR/data"
         (cd "$SCRIPT_DIR" && docker-compose up -d --build 2>&1) > /dev/null
     else
         # Python direct — uvicorn

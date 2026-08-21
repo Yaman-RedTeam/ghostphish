@@ -223,6 +223,15 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/health   # 200 = 
 
 - **`Permission denied` writing a log to `/tmp`** — fixed: both launchers now write their logs to the repo directory, not `/tmp`.
 - **Old link 404s / times out** — the URL rotated on a restart; grab the current one with `./tunnel-persistent.sh url`.
+- **Live watcher spams `fetch error: HTTP Error 500` / `/admin/captures` returns 500** — the container's `./data` bind-mount went stale, usually because the host `data/` directory was deleted while the container was running (`unable to open database file` in `docker logs ghostphish`). Recreate the dir and restart so the mount re-binds:
+
+  ```bash
+  mkdir -p data                 # restore the bind-mount source
+  docker restart ghostphish     # re-bind /app/data to the fresh directory
+  curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/admin/captures   # expect 200
+  ```
+
+  Never `rm -rf data/` while the container is up — use `python3 cleanup.py purge` instead (it removes rows and restarts the container for you). `start.sh` now recreates `data/` before every boot to prevent this.
 
 ### 5. Watch captures live
 
