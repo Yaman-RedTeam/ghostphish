@@ -128,7 +128,21 @@ Ghostphish detects your environment and picks the right runtime automatically:
 | **Termux (Android)** | Python (no Docker needed) | `bash termux-setup.sh` → `./start.sh` |
 | Bare-metal / VPS without Docker | Python | `./start.sh` (auto-fallback) |
 
-Optional but recommended: `cloudflared` binary for public HTTPS tunneling — [install](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/). On Termux, `termux-setup.sh` installs it for you.
+Optional but recommended: `cloudflared` binary for public HTTPS tunneling. On Termux, `termux-setup.sh` installs it for you. On Linux / macOS install it explicitly so the tunnel step never fails with `cloudflared not installed`:
+
+```bash
+# Debian/Kali/Ubuntu (amd64)
+sudo wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+  -O /usr/local/bin/cloudflared && sudo chmod +x /usr/local/bin/cloudflared
+
+# macOS
+brew install cloudflared
+
+# verify
+cloudflared --version
+```
+
+> ARM64 host? Swap `-amd64` for `-arm64` in the URL above. Full download list: [Cloudflare docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/).
 
 ### 2a. Linux / macOS
 
@@ -169,17 +183,46 @@ bash termux-setup.sh
 
 ### 4. Expose publicly with cloudflared
 
-Included in `start.sh`, or run standalone:
+You have two launchers. **Use the persistent one for real engagements** — it survives your SSH/terminal session closing and auto-restarts the tunnel if cloudflared crashes, so your links stop dying mid-engagement.
+
+**Recommended — persistent supervisor (background, self-healing):**
+
+```bash
+./tunnel-persistent.sh start      # launch in background, print the public URL
+./tunnel-persistent.sh status     # show current URL + every phishing page link
+./tunnel-persistent.sh url        # print just the current URL (for scripts)
+./tunnel-persistent.sh logs       # tail the live tunnel log
+./tunnel-persistent.sh stop       # stop the supervisor + tunnel
+```
+
+**Manual — foreground one-shot (dies on `Ctrl+C`):**
 
 ```bash
 ./tunnel.sh
 ```
+
+> `tunnel.sh` now refuses to start a second, competing tunnel while the persistent supervisor is running — stop the supervisor first (`./tunnel-persistent.sh stop`) if you deliberately want the manual one.
 
 **Why cloudflared over ngrok:**
 - No account or auth token needed (quick-tunnel is anonymous)
 - No warning interstitial page (ngrok's free tier shows one)
 - HTTPS by default with a valid Cloudflare cert
 - URL rotates per launch — harder to blacklist
+
+> ⚠️ **Quick-tunnel URLs are ephemeral.** Every (re)start — including an auto-restart — hands out a **new** random `*.trycloudflare.com` URL. Any link you already sent dies on restart. Re-read the current one with `./tunnel-persistent.sh url` and re-send. For a URL that **never** changes you need a cloudflared **named tunnel** + a Cloudflare account + your own domain (see [Cloudflare docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/)).
+
+#### Troubleshooting: "the link isn't working"
+
+Nine times out of ten the app is fine and the **tunnel died** — the app runs in Docker on `:8000` independently of cloudflared.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8000/health   # 200 = app is UP
+./tunnel-persistent.sh status                                           # is the tunnel alive? what's the URL?
+./tunnel-persistent.sh start                                            # (re)start it if not running
+```
+
+- **`Permission denied` writing a log to `/tmp`** — fixed: both launchers now write their logs to the repo directory, not `/tmp`.
+- **Old link 404s / times out** — the URL rotated on a restart; grab the current one with `./tunnel-persistent.sh url`.
 
 ### 5. Watch captures live
 
