@@ -28,7 +28,36 @@ Most public phishing kits ship with **outdated templates** that no longer match 
 - **Modern replicas** — pixel-close copies of the *current* login pages (2025/2026 designs), including 2-step Google/Microsoft OAuth flows and dark themes where applicable.
 - **Real data storage** — SQLite with a proper schema, not flat text files. Query, export, or feed into other tooling.
 - **Production-ish backend** — FastAPI + Docker, honeypot detection, structured logging.
-- **One-command tunnel** — `./tunnel.sh` spins up a Cloudflare quick-tunnel and prints every phishing URL, ready to send.
+- **Permanent links** — Unified supervisor keeps app + tunnel alive together with auto-restart. Links work even if terminal closes, app crashes, or network interrupts.
+- **One-command tunnel** — `./start.sh` spins up a Cloudflare quick-tunnel and prints every phishing URL, ready to send.
+
+## Permanent Links (NEW 🎯)
+
+Links no longer die when you close your terminal or if the app crashes:
+
+```bash
+./start.sh
+# → Links work immediately and stay alive FOREVER
+# → Even if you close terminal, SSH disconnects, or app crashes
+# → Supervisor auto-restarts failed components in background
+# → Same URL stays active (no regeneration needed per crash)
+```
+
+**What changed:**
+- ✅ **Unified supervisor** keeps app + tunnel alive together
+- ✅ **Auto-restart** on any failure (app crash, network blip)
+- ✅ **Survives terminal close** (background setsid process)
+- ✅ **Health checks every 10s** ensure continuous availability
+- ✅ **Backward compatible** — still use `./start.sh` as shown in videos
+
+**If something breaks:**
+```bash
+./diagnose.sh          # Quick health check
+./launch-and-maintain.sh status   # Current URL + all templates
+./launch-and-maintain.sh logs     # Watch live logs
+```
+
+See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) for complete guide.
 
 ## Templates
 
@@ -278,10 +307,10 @@ Ghostphish is hardened against the most common failure modes. Here's what won't 
 - **Safe-browsing evasion** — fails gracefully if all shorteners are down; the long URL still works and is just less disguised.
 
 ### Best practices to avoid any error
-1. **Use persistent tunnel supervisor for real engagements** — `./tunnel-persistent.sh start` (survives SSH timeouts, auto-restarts).
+1. **Use unified launcher for real engagements** — `./start.sh` now automatically uses the permanent supervisor (`launch-and-maintain.sh`), which keeps app + tunnel alive with auto-restart.
 2. **Never `rm -rf data/` while container is running** — use `python3 cleanup.py purge` instead (handles restart for you).
 3. **Check `docker logs ghostphish`** if anything looks odd — startup errors are logged there.
-4. **Run `./health` curl before claiming the tool is "down"** — differentiates app (200 ✓) from tunnel (may be regenerating URL).
+4. **If links show "This site can't be reached"** — run `./diagnose.sh` to identify the issue. See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) for complete guide.
 
 ## Endpoints
 
