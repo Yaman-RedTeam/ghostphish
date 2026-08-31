@@ -1,6 +1,7 @@
 
 # Database
-data/
+data/*
+!data/.gitkeep
 *.db
 
 # Python
