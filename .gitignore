@@ -73,8 +73,12 @@ htmlcov/
 *_backup_*
 
 # Runtime state (tunnel + app logs/pids)
+ghostphish_*.url
+ghostphish_*.pid
+ghostphish_*.log
 ghostphish_tunnel.*
 ghostphish_start_manual.*
+ghostphish_maintenance.*
 ghostphish_uvicorn_manual.*
 
 # Local config overrides
