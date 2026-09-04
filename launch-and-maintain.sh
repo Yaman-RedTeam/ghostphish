@@ -54,6 +54,15 @@ tunnel_pid_alive() {
     [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE" 2>/dev/null)" 2>/dev/null
 }
 
+tunnel_connected() {
+    local url; url="$(get_current_url)"
+    if [[ -z "$url" ]]; then
+        return 1
+    fi
+
+    curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" 2>/dev/null | grep -qE "^[23]"
+}
+
 app_pid_alive() {
     [[ -f "$APP_PID_FILE" ]] && kill -0 "$(cat "$APP_PID_FILE" 2>/dev/null)" 2>/dev/null
 }
@@ -171,22 +180,57 @@ maintain() {
     trap 'log_maint "Caught TERM, shutting down gracefully";
           kill_graceful; exit 0' TERM INT
 
+    local tunnel_fail_count=0
+    local last_url_check=0
+    local tunnel_start_time=0
+
     while true; do
         # Ensure app is healthy
         if ! app_healthy; then
             log_maint "App unhealthy, restarting..."
             start_app || sleep 5
+            tunnel_fail_count=0
+            tunnel_start_time=0
             continue
         fi
 
-        # Try to keep tunnel alive (but don't require it)
-        if ! tunnel_pid_alive; then
-            log_maint "Tunnel not running, attempting restart..."
-            start_tunnel || log_maint "Tunnel unavailable (will retry)"
+        # Check tunnel connection (not just if process is alive)
+        local now; now=$(date +%s)
+        if (( now - last_url_check >= 10 )); then
+            last_url_check=$now
+
+            if ! tunnel_pid_alive; then
+                log_maint "Tunnel process dead, attempting restart..."
+                if start_tunnel; then
+                    tunnel_fail_count=0
+                    tunnel_start_time=$now
+                else
+                    (( tunnel_fail_count++ ))
+                    log_maint "Tunnel restart failed (attempt $tunnel_fail_count)"
+                fi
+            elif (( now - tunnel_start_time > 30 )); then
+                if ! tunnel_connected; then
+                    log_maint "Tunnel connection lost (no response), restarting..."
+                    if [[ -f "$TUNNEL_PID_FILE" ]]; then
+                        kill "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null || true
+                        sleep 1
+                    fi
+                    rm -f "$TUNNEL_PID_FILE" "$URL_FILE"
+                    if start_tunnel; then
+                        tunnel_fail_count=0
+                        tunnel_start_time=$now
+                    else
+                        (( tunnel_fail_count++ ))
+                        log_maint "Tunnel restart failed (attempt $tunnel_fail_count)"
+                    fi
+                else
+                    tunnel_fail_count=0
+                fi
+            fi
         fi
 
-        # Check every 10 seconds
-        sleep 10
+        # Check every 5 seconds (balance between responsiveness and stability)
+        sleep 5
     done
 }
 
