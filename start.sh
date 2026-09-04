@@ -29,7 +29,7 @@ link() {
 }
 
 PORT=8000
-VERSION="1.0.0"
+VERSION="1.0.5"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 # Write logs to repo dir, not /tmp (which can be sandbox-blocked or have perms issues).
 # Keep manual-mode logs separate from persistent-supervisor logs.
