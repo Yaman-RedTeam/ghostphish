@@ -13,7 +13,7 @@ import hashlib
 # ── Watermark ──────────────────────────────────────────────
 AUTHOR = "Yaman.RedTeam"
 GITHUB = "https://github.com/Yaman-RedTeam/ghostphish"
-VERSION = "1.0.0"
+VERSION = "1.0.5"
 
 BANNER = f"""
 \033[0;31m
